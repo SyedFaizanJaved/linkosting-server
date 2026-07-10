@@ -1,0 +1,40 @@
+name: daily-cron
+on:
+  schedule:
+    - cron: '0 4 * * *'    # 09:00 PKT -> generate
+    - cron: '0 12 * * *'   # 17:00 PKT -> publish
+  workflow_dispatch:
+    inputs:
+      job:
+        description: 'generate or publish'
+        required: true
+        default: 'publish'
+      dryRun:
+        description: 'true = full publish flow except the LinkedIn call'
+        required: false
+        default: 'false'
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pick job
+        id: pick
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "job=${{ github.event.inputs.job }}" >> "$GITHUB_OUTPUT"
+            echo "body={\"dryRun\":${{ github.event.inputs.dryRun }}}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event.schedule }}" = "0 4 * * *" ]; then
+            echo "job=generate" >> "$GITHUB_OUTPUT"
+            echo "body={}" >> "$GITHUB_OUTPUT"
+          else
+            echo "job=publish" >> "$GITHUB_OUTPUT"
+            echo "body={}" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Call job endpoint
+        run: |
+          curl -sf --retry 3 --retry-delay 30 --max-time 300 \
+            -X POST "${{ secrets.SERVER_URL }}/api/jobs/${{ steps.pick.outputs.job }}" \
+            -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
+            -H "content-type: application/json" \
+            -d '${{ steps.pick.outputs.body }}'
