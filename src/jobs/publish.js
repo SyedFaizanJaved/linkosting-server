@@ -18,26 +18,41 @@ export function slotFor(hhmm, now = new Date()) {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), h, m));
 }
 
-export async function publishDraft(id, overrideText) {
-  const s = await getAllSettings();
+// deps param exists solely so tests can fake createPost/query/sendMail without a DB or network call.
+export async function publishDraft(id, overrideText, deps = {}) {
+  const {
+    getAllSettings: _getAllSettings = getAllSettings,
+    query: _query = query,
+    createPost: _createPost = createPost,
+    sendMail: _sendMail = sendMail,
+  } = deps;
+
+  const s = await _getAllSettings();
   if (!s.linkedin_token || !s.linkedin_member_urn) {
     throw new Error('LinkedIn not connected — open Settings and click Connect LinkedIn.');
   }
-  const { rows: [claimed] } = await query(
+  const { rows: [claimed] } = await _query(
     `UPDATE drafts SET status='posted', posted_at=now()
      WHERE id=$1 AND status IN ('pending','approved') RETURNING *`, [id]
   );
   if (!claimed) throw new Error('draft not found or already posted');
   const text = overrideText || claimed.edited_content || claimed.content;
+
+  let postId;
   try {
-    const postId = await createPost(text, s.linkedin_token, s.linkedin_member_urn);
-    await query('UPDATE drafts SET linkedin_post_id=$2, edited_content=$3 WHERE id=$1', [id, postId, text]);
-    await sendMail('Posted to LinkedIn ✔', `${text}\n\nhttps://www.linkedin.com/feed/update/${postId}/`);
-    return { id, result: 'posted', postId };
+    postId = await _createPost(text, s.linkedin_token, s.linkedin_member_urn);
   } catch (e) {
-    await query('UPDATE drafts SET status=$2, posted_at=NULL WHERE id=$1', [id, claimed.status]);
+    await _query('UPDATE drafts SET status=$2, posted_at=NULL WHERE id=$1', [id, claimed.status]);
     throw e;
   }
+
+  // createPost succeeded: the draft IS posted, permanently. Nothing below may revert it —
+  // failures here are logged/swallowed, never rethrown.
+  await _query('UPDATE drafts SET linkedin_post_id=$2, edited_content=$3 WHERE id=$1', [id, postId, text])
+    .catch(err => console.error(`Failed to record linkedin_post_id for draft ${id}:`, err));
+  await _sendMail('Posted to LinkedIn ✔', `${text}\n\nhttps://www.linkedin.com/feed/update/${postId}/`).catch(() => {});
+
+  return { id, result: 'posted', postId };
 }
 
 export async function runPublish({ dryRun = false } = {}) {
@@ -49,7 +64,7 @@ export async function runPublish({ dryRun = false } = {}) {
       await sendMail(
         `Action needed: LinkedIn token expires in ${daysLeft} day(s)`,
         'Open the dashboard Settings page and click "Connect LinkedIn" to refresh it.'
-      );
+      ).catch(() => {});
     }
   }
 

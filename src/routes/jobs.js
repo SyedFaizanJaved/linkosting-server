@@ -18,7 +18,12 @@ router.post('/generate', requireCronSecret, ah(async (req, res) => {
 }));
 
 router.post('/publish', requireCronSecret, ah(async (req, res) => {
-  res.json(await runPublish({ dryRun: req.body?.dryRun === true || req.body?.dryRun === 'true' }));
+  try {
+    res.json(await runPublish({ dryRun: req.body?.dryRun === true || req.body?.dryRun === 'true' }));
+  } catch (e) {
+    await sendMail('LinkedIn automation FAILED: publish', String(e.stack || e)).catch(() => {});
+    throw e;
+  }
 }));
 
 export default router;
