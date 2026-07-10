@@ -1,0 +1,27 @@
+{
+  "name": "linkedin-post-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch --env-file=.env src/index.js",
+    "test": "node --test test/",
+    "db:init": "node scripts/db-init.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "imapflow": "^1.4.6",
+    "jsonwebtoken": "^9.0.3",
+    "mailparser": "^3.9.14",
+    "nodemailer": "^9.0.3",
+    "pg": "^8.22.0",
+    "rss-parser": "^3.13.0"
+  }
+}
