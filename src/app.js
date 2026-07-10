@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import authRoutes from './routes/auth.js';
 import linkedinRoutes from './routes/linkedin.js';
+import jobRoutes from './routes/jobs.js';
 
 export function buildApp() {
   const app = express();
@@ -10,6 +11,7 @@ export function buildApp() {
   app.get('/api/health', (req, res) => res.json({ ok: true }));
   app.use('/api/auth', authRoutes);
   app.use('/api/linkedin', linkedinRoutes);
+  app.use('/api/jobs', jobRoutes);
   app.use((err, req, res, next) => res.status(500).json({ error: String(err.message || err) }));
   return app;
 }
