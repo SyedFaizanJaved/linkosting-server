@@ -42,7 +42,7 @@ export async function publishDraft(id, overrideText, deps = {}) {
   try {
     postId = await _createPost(text, s.linkedin_token, s.linkedin_member_urn);
   } catch (e) {
-    await _query('UPDATE drafts SET status=$2, posted_at=NULL WHERE id=$1', [id, claimed.status]);
+    await _query(`UPDATE drafts SET status='approved', posted_at=NULL WHERE id=$1`, [id]);
     throw e;
   }
 
