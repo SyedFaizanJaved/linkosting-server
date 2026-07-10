@@ -6,7 +6,7 @@ import { ah } from '../util.js';
 import { publishDraft } from '../jobs/publish.js';
 import { generatePost } from '../services/gemini.js';
 
-const SOURCES = new Set(['daily', 'generated', 'manual']);
+const SOURCES = new Set(['generated', 'manual']);
 const router = Router();
 router.use(requireJwt);
 
@@ -36,11 +36,15 @@ router.post('/', ah(async (req, res) => {
 }));
 
 router.put('/:id', ah(async (req, res) => {
+  const { edited_content } = req.body || {};
+  if (typeof edited_content !== 'string') {
+    return res.status(400).json({ error: 'edited_content is required' });
+  }
   const { rows: [d] } = await query(
-    'UPDATE drafts SET edited_content=$2 WHERE id=$1 RETURNING *',
-    [req.params.id, req.body?.edited_content ?? null]
+    "UPDATE drafts SET edited_content=$2 WHERE id=$1 AND status <> 'posted' RETURNING *",
+    [req.params.id, edited_content]
   );
-  if (!d) return res.status(404).json({ error: 'not found' });
+  if (!d) return res.status(409).json({ error: 'already posted' });
   res.json(d);
 }));
 

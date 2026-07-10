@@ -59,9 +59,10 @@ test('publishDraft does not revert status when post-createPost steps fail', asyn
 
 // Bug: UPDATE ... RETURNING * returns POST-update values, so claimed.status was always
 // 'posted' — writing that back on createPost failure stranded the draft as 'posted' with
-// posted_at=NULL forever (invisible to the due query, and /publish returns 409). The
-// revert must always restore 'approved', not whatever claimed.status happened to be.
-test('publishDraft reverts to approved and rethrows when createPost fails', async () => {
+// posted_at=NULL forever (invisible to the due query, and /publish returns 409). The claim
+// query now captures the TRUE pre-claim status via a CTE (`prev_status`), and the revert
+// must restore THAT value — not the post-image 'posted', and not a hardcoded 'approved'.
+async function revertScenario(prevStatus) {
   const calls = [];
   await assert.rejects(
     publishDraft(1, undefined, {
@@ -69,9 +70,9 @@ test('publishDraft reverts to approved and rethrows when createPost fails', asyn
       query: async (sql, params) => {
         calls.push({ sql: sql.trim(), params });
         if (sql.includes("SET status='posted'")) {
-          return { rows: [{ id: 1, status: 'pending', content: 'hello', edited_content: null }] };
+          return { rows: [{ id: 1, content: 'hello', edited_content: null, prev_status: prevStatus }] };
         }
-        if (sql.includes("SET status='approved'")) return { rows: [] };
+        if (/SET status=\$2/.test(sql)) return { rows: [] };
         throw new Error(`unexpected query in test: ${sql}`);
       },
       createPost: async () => { throw new Error('linkedin 429'); },
@@ -81,6 +82,14 @@ test('publishDraft reverts to approved and rethrows when createPost fails', asyn
 
   const revert = calls.find(c => c.sql.includes('posted_at=NULL'));
   assert.ok(revert, 'must issue a revert query when createPost throws');
-  assert.match(revert.sql, /status='approved'/);
-  assert.deepEqual(revert.params, [1]);
+  assert.deepEqual(revert.params, [1, prevStatus]);
+  return revert;
+}
+
+test('publishDraft reverts to pending (not approved) when the claimed draft was pending and createPost fails', async () => {
+  await revertScenario('pending');
+});
+
+test('publishDraft still reverts to approved when the claimed draft was approved and createPost fails', async () => {
+  await revertScenario('approved');
 });

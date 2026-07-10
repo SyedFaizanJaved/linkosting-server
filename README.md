@@ -10,7 +10,7 @@ lives in the separate `linkedin-post-client` repo.
 | Endpoint | Auth | Purpose |
 |---|---|---|
 | POST /api/jobs/generate | x-cron-secret | Daily auto-draft + approval email |
-| POST /api/jobs/publish | x-cron-secret | Publish approved & due (`{"dryRun":true}` to test); runs every 15 min |
+| POST /api/jobs/publish | x-cron-secret | Publish approved & due (`{"dryRun":true}` to test; dry run still applies email approvals, backfills slots, and skips stale drafts — only the LinkedIn call is skipped); runs every 15 min |
 | POST /api/auth/login | — | Get dashboard JWT |
 | POST /api/generate | JWT | 3 post variants from prompt + tone + length |
 | GET /api/drafts?status=&topic=&q= | JWT | Filterable library |

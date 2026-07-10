@@ -5,6 +5,17 @@ import { sendMail } from '../services/email.js';
 
 export async function runGenerate() {
   const s = await getAllSettings();
+
+  if (s.linkedin_token_expires_at) {
+    const daysLeft = Math.floor((new Date(s.linkedin_token_expires_at) - Date.now()) / 86400000);
+    if (daysLeft <= 7) {
+      await sendMail(
+        `Action needed: LinkedIn token expires in ${daysLeft} day(s)`,
+        'Open the dashboard Settings page and click "Connect LinkedIn" to refresh it.'
+      ).catch(() => {});
+    }
+  }
+
   const feeds = JSON.parse(s.feeds || '[]');
   if (!feeds.length) throw new Error('No RSS feeds configured');
   const used = (await query('SELECT article_url FROM drafts')).rows.map(r => r.article_url);

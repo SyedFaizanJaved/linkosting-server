@@ -32,8 +32,10 @@ export async function publishDraft(id, overrideText, deps = {}) {
     throw new Error('LinkedIn not connected — open Settings and click Connect LinkedIn.');
   }
   const { rows: [claimed] } = await _query(
-    `UPDATE drafts SET status='posted', posted_at=now()
-     WHERE id=$1 AND status IN ('pending','approved') RETURNING *`, [id]
+    `WITH prev AS (SELECT status FROM drafts WHERE id=$1)
+     UPDATE drafts SET status='posted', posted_at=now()
+     WHERE id=$1 AND status IN ('pending','approved')
+     RETURNING drafts.*, (SELECT status FROM prev) AS prev_status`, [id]
   );
   if (!claimed) throw new Error('draft not found or already posted');
   const text = overrideText || claimed.edited_content || claimed.content;
@@ -42,7 +44,7 @@ export async function publishDraft(id, overrideText, deps = {}) {
   try {
     postId = await _createPost(text, s.linkedin_token, s.linkedin_member_urn);
   } catch (e) {
-    await _query(`UPDATE drafts SET status='approved', posted_at=NULL WHERE id=$1`, [id]);
+    await _query(`UPDATE drafts SET status=$2, posted_at=NULL WHERE id=$1`, [id, claimed.prev_status]);
     throw e;
   }
 
@@ -57,16 +59,6 @@ export async function publishDraft(id, overrideText, deps = {}) {
 
 export async function runPublish({ dryRun = false } = {}) {
   const s = await getAllSettings();
-
-  if (s.linkedin_token_expires_at) {
-    const daysLeft = Math.floor((new Date(s.linkedin_token_expires_at) - Date.now()) / 86400000);
-    if (daysLeft <= 7) {
-      await sendMail(
-        `Action needed: LinkedIn token expires in ${daysLeft} day(s)`,
-        'Open the dashboard Settings page and click "Connect LinkedIn" to refresh it.'
-      ).catch(() => {});
-    }
-  }
 
   // 1. Apply email approval to today's pending daily draft
   const { rows: [daily] } = await query(
@@ -98,6 +90,9 @@ export async function runPublish({ dryRun = false } = {}) {
   );
 
   // 4. Publish everything approved and due
+  if (!s.linkedin_token || !s.linkedin_member_urn) {
+    return { published: [], result: 'linkedin-not-connected' };
+  }
   const { rows: due } = await query(
     `SELECT id FROM drafts WHERE status='approved' AND scheduled_at <= now() ORDER BY scheduled_at`
   );

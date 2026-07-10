@@ -25,7 +25,7 @@ router.get('/', ah(async (req, res) => {
 
 router.put('/', ah(async (req, res) => {
   const { topics, tone, hashtags, feeds, default_post_time, onboarded } = req.body || {};
-  if (default_post_time !== undefined && !/^\d{2}:\d{2}$/.test(default_post_time)) {
+  if (default_post_time !== undefined && !/^([01]\d|2[0-3]):[0-5]\d$/.test(default_post_time)) {
     return res.status(400).json({ error: 'default_post_time must be HH:MM (UTC)' });
   }
   if (topics !== undefined) await setSetting('topics', topics);
