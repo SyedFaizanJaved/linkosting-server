@@ -1,3 +1,11 @@
+const LENGTH_WORDS = { short: '60-100', medium: '120-180', long: '200-280' };
+
+export const ANGLES = [
+  'Tell it as a personal story with a hard-won lesson.',
+  'Take a bold, respectfully contrarian stance.',
+  'Make it a practical, numbered list of actionable takeaways.',
+];
+
 export function buildPrompt(article, settings) {
   return `You are ghostwriting a LinkedIn post for a professional working in: ${settings.topics}.
 Tone and persona: ${settings.tone}
@@ -15,16 +23,43 @@ Rules:
 - Output ONLY the post text, nothing else.`;
 }
 
-export async function generatePost(article, settings) {
+export function buildVariantPrompt({ prompt, tone, length, angle }, settings) {
+  return `You are ghostwriting a LinkedIn post for a professional working in: ${settings.topics}.
+Persona: ${settings.tone}
+Requested tone for this post: ${tone}
+Angle: ${angle}
+
+Write ONE LinkedIn post (${LENGTH_WORDS[length] || LENGTH_WORDS.medium} words) about:
+${prompt}
+
+Rules:
+- The first line must hook the reader on its own.
+- Short paragraphs (1-3 sentences), blank line between them.
+- Do NOT include any URL.
+- End with these hashtags: ${settings.hashtags}
+- Output ONLY the post text, nothing else.`;
+}
+
+async function callGemini(text) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ contents: [{ parts: [{ text: buildPrompt(article, settings) }] }] }),
+    body: JSON.stringify({ contents: [{ parts: [{ text }] }] }),
   });
   if (!res.ok) throw new Error(`Gemini ${res.status}: ${await res.text()}`);
   const data = await res.json();
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-  if (!text) throw new Error('Gemini returned no text');
-  return text;
+  const out = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+  if (!out) throw new Error('Gemini returned no text');
+  return out;
+}
+
+export async function generatePost(article, settings) {
+  return callGemini(buildPrompt(article, settings));
+}
+
+export async function generateVariants({ prompt, tone, length }, settings) {
+  return Promise.all(ANGLES.map(angle =>
+    callGemini(buildVariantPrompt({ prompt, tone, length, angle }, settings))
+  ));
 }
