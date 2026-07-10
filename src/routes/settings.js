@@ -17,16 +17,23 @@ router.get('/', ah(async (req, res) => {
     tone: s.tone || '',
     hashtags: s.hashtags || '',
     feeds: JSON.parse(s.feeds || '[]'),
+    default_post_time: s.default_post_time || '12:00',
+    onboarded: s.onboarded || '',
     linkedin: { connected: !!s.linkedin_token, daysLeft },
   });
 }));
 
 router.put('/', ah(async (req, res) => {
-  const { topics, tone, hashtags, feeds } = req.body || {};
+  const { topics, tone, hashtags, feeds, default_post_time, onboarded } = req.body || {};
+  if (default_post_time !== undefined && !/^\d{2}:\d{2}$/.test(default_post_time)) {
+    return res.status(400).json({ error: 'default_post_time must be HH:MM (UTC)' });
+  }
   if (topics !== undefined) await setSetting('topics', topics);
   if (tone !== undefined) await setSetting('tone', tone);
   if (hashtags !== undefined) await setSetting('hashtags', hashtags);
   if (feeds !== undefined) await setSetting('feeds', JSON.stringify(feeds));
+  if (default_post_time !== undefined) await setSetting('default_post_time', default_post_time);
+  if (onboarded !== undefined) await setSetting('onboarded', String(onboarded));
   res.json({ ok: true });
 }));
 
