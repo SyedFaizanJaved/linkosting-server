@@ -36,6 +36,7 @@ export async function fetchApprovalReply(draftId) {
     for (const uid of uids) {
       const msg = await client.fetchOne(uid, { source: true });
       const parsed = await simpleParser(msg.source);
+      if (!/^re:/i.test((parsed.subject || '').trim())) continue;
       const from = parsed.from?.value?.[0]?.address?.toLowerCase() || '';
       if (from !== process.env.APPROVER_EMAIL.toLowerCase()) continue;
       if (!latest || parsed.date > latest.date) latest = parsed;

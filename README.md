@@ -41,6 +41,8 @@ Client dashboard lives in a separate repo.
    publish. Test manually: Actions → daily-cron → Run workflow → job=publish,
    dryRun=true.
 
+Note: the server runs Express 5 (installed as latest); route code is compatible.
+
 ## Daily flow
 
 9 AM: draft generated + emailed. Reply `OK` to approve, reply with edited text

@@ -40,12 +40,20 @@ export async function publishDraft(draftId, text) {
   if (!s.linkedin_token || !s.linkedin_member_urn) {
     throw new Error('LinkedIn not connected — open dashboard Settings and click Connect LinkedIn.');
   }
-  const postId = await createPost(text, s.linkedin_token, s.linkedin_member_urn);
-  await query(
-    `UPDATE drafts SET status='posted', edited_content=$2, linkedin_post_id=$3, posted_at=now() WHERE id=$1`,
-    [draftId, text, postId]
+  const { rows: [claimed] } = await query(
+    `UPDATE drafts SET status='posted', edited_content=$2, posted_at=now() WHERE id=$1 AND status <> 'posted' RETURNING id`,
+    [draftId, text]
   );
-  await sendMail('Posted to LinkedIn ✔', `${text}\n\nhttps://www.linkedin.com/feed/update/${postId}/`);
+  if (!claimed) throw new Error(`Draft ${draftId} already posted`);
+  let postId;
+  try {
+    postId = await createPost(text, s.linkedin_token, s.linkedin_member_urn);
+  } catch (e) {
+    await query(`UPDATE drafts SET status='approved', posted_at=NULL WHERE id=$1`, [draftId]).catch(() => {});
+    throw e;
+  }
+  await query(`UPDATE drafts SET linkedin_post_id=$2 WHERE id=$1`, [draftId, postId]);
+  await sendMail('Posted to LinkedIn ✔', `${text}\n\nhttps://www.linkedin.com/feed/update/${postId}/`).catch(() => {});
   return postId;
 }
 

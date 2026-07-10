@@ -32,3 +32,21 @@ test('empty, null, or only-quoted text is none', () => {
   assert.deepEqual(parseReply(null), { action: 'none' });
   assert.deepEqual(parseReply('> quoted only\n> more'), { action: 'none' });
 });
+
+test('outlook underscore header block is stripped, OK approves', () => {
+  const raw = 'OK\n\n________________________________\nFrom: Bot <b@x.com>\nSent: Thursday, July 10, 2026\nTo: Me\nSubject: [LI-Draft #1]\n> old draft';
+  assert.deepEqual(parseReply(raw), { action: 'approve' });
+});
+
+test('mobile signature line is dropped', () => {
+  assert.deepEqual(parseReply('OK\n\nSent from my iPhone'), { action: 'approve' });
+});
+
+test('first-line approve keyword approves despite trailing text', () => {
+  assert.deepEqual(parseReply('Approved\nThanks!'), { action: 'approve' });
+});
+
+test('edit followed by outlook From: block keeps only the new text', () => {
+  const raw = 'New post text here.\n\nFrom: Bot <b@x.com>\nSent: Thu\n> old';
+  assert.deepEqual(parseReply(raw), { action: 'edit', text: 'New post text here.' });
+});
