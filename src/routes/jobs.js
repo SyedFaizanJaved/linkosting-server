@@ -1,8 +1,8 @@
 import { Router } from 'express';
-import { requireCronSecret } from '../auth.js';
+import { requireCronSecret } from '../middleware/auth.js';
 import { ah } from '../util.js';
 import { runGenerate, runPublish } from '../jobs.js';
-import { sendMail } from '../email.js';
+import { sendMail } from '../services/email.js';
 
 const router = Router();
 

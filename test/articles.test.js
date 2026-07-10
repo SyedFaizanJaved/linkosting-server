@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert';
-import { pickFresh } from '../src/articles.js';
+import { pickFresh } from '../src/services/articles.js';
 
 const items = [
   { title: 'Old', link: 'https://a.com/old', snippet: '', isoDate: '2026-07-01T00:00:00Z' },

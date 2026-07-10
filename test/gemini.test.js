@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert';
-import { buildPrompt } from '../src/gemini.js';
+import { buildPrompt } from '../src/services/gemini.js';
 
 test('prompt embeds article, tone, topics, hashtags', () => {
   const p = buildPrompt(

@@ -5,7 +5,7 @@ import jwt from 'jsonwebtoken';
 process.env.JWT_SECRET = 'test-secret';
 process.env.CRON_SECRET = 'test-cron';
 
-const { requireJwt, requireCronSecret } = await import('../src/auth.js');
+const { requireJwt, requireCronSecret } = await import('../src/middleware/auth.js');
 
 function mockRes() {
   return { code: null, status(c) { this.code = c; return this; }, json() { return this; } };

@@ -1,9 +1,9 @@
-import { query, getAllSettings } from './db.js';
-import { fetchCandidates, pickFresh } from './articles.js';
-import { generatePost } from './gemini.js';
-import { sendMail, fetchApprovalReply } from './email.js';
-import { parseReply } from './replyParser.js';
-import { createPost } from './linkedin.js';
+import { query, getAllSettings } from './db/index.js';
+import { fetchCandidates, pickFresh } from './services/articles.js';
+import { generatePost } from './services/gemini.js';
+import { sendMail, fetchApprovalReply } from './services/email.js';
+import { parseReply } from './services/replyParser.js';
+import { createPost } from './services/linkedin.js';
 
 export function decideApproval(draft, replyText) {
   if (draft.status === 'approved') {

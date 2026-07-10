@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert';
-import { parseReply } from '../src/replyParser.js';
+import { parseReply } from '../src/services/replyParser.js';
 
 test('OK approves', () => {
   assert.deepEqual(parseReply('OK'), { action: 'approve' });

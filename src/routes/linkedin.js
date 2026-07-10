@@ -1,8 +1,8 @@
 import { Router } from 'express';
 import crypto from 'node:crypto';
-import { authUrl, exchangeCode } from '../linkedin.js';
-import { setSetting, getSetting } from '../db.js';
-import { requireJwt } from '../auth.js';
+import { authUrl, exchangeCode } from '../services/linkedin.js';
+import { setSetting, getSetting } from '../db/index.js';
+import { requireJwt } from '../middleware/auth.js';
 import { ah } from '../util.js';
 
 const router = Router();

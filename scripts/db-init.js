@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import fs from 'node:fs';
 import bcrypt from 'bcryptjs';
-import { pool, query, setSetting, getSetting } from '../src/db.js';
+import { pool, query, setSetting, getSetting } from '../src/db/index.js';
 
 const schema = fs.readFileSync(new URL('../schema.sql', import.meta.url), 'utf8');
 await query(schema);
@@ -14,6 +14,7 @@ const defaults = {
     'https://www.technologyreview.com/feed/',
     'https://venturebeat.com/category/ai/feed/',
   ]),
+  default_post_time: '12:00',
 };
 for (const [k, v] of Object.entries(defaults)) {
   if ((await getSetting(k)) === null) await setSetting(k, v);

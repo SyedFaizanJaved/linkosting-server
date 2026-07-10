@@ -4,7 +4,7 @@ import assert from 'node:assert';
 process.env.LINKEDIN_CLIENT_ID = 'cid';
 process.env.SERVER_URL = 'https://srv.example';
 
-const { authUrl } = await import('../src/linkedin.js');
+const { authUrl } = await import('../src/services/linkedin.js');
 
 test('authUrl embeds state, client id, redirect uri, scope', () => {
   const u = new URL(authUrl('my-state'));

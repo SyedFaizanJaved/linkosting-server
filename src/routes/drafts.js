@@ -1,9 +1,9 @@
 import { Router } from 'express';
-import { query, getAllSettings } from '../db.js';
-import { requireJwt } from '../auth.js';
+import { query, getAllSettings } from '../db/index.js';
+import { requireJwt } from '../middleware/auth.js';
 import { ah } from '../util.js';
 import { publishDraft } from '../jobs.js';
-import { generatePost } from '../gemini.js';
+import { generatePost } from '../services/gemini.js';
 
 const router = Router();
 router.use(requireJwt);

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import { query } from '../db.js';
+import { query } from '../db/index.js';
 import { ah } from '../util.js';
 
 const router = Router();
