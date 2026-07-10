@@ -3,7 +3,7 @@ import { query, getAllSettings } from '../db/index.js';
 import { buildDraftsFilter } from '../db/draftsFilter.js';
 import { requireJwt } from '../middleware/auth.js';
 import { ah } from '../util.js';
-import { publishDraft } from '../jobs.js';
+import { publishDraft } from '../jobs/publish.js';
 import { generatePost } from '../services/gemini.js';
 
 const SOURCES = new Set(['daily', 'generated', 'manual']);
@@ -89,11 +89,10 @@ router.put('/:id/metrics', ah(async (req, res) => {
 }));
 
 router.post('/:id/publish', ah(async (req, res) => {
-  const { rows: [d] } = await query('SELECT * FROM drafts WHERE id=$1', [req.params.id]);
+  const { rows: [d] } = await query('SELECT id, status FROM drafts WHERE id=$1', [req.params.id]);
   if (!d) return res.status(404).json({ error: 'not found' });
   if (d.status === 'posted') return res.status(409).json({ error: 'already posted' });
-  const postId = await publishDraft(d.id, d.edited_content || d.content);
-  res.json({ ok: true, postId });
+  res.json({ ok: true, ...(await publishDraft(d.id)) });
 }));
 
 router.post('/:id/regenerate', ah(async (req, res) => {

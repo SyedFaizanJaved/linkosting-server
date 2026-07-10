@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert';
-import { decideApproval } from '../src/jobs.js';
+import { decideApproval, slotFor } from '../src/jobs/publish.js';
 
 const draft = { status: 'pending', content: 'generated text', edited_content: null };
 
@@ -24,4 +24,9 @@ test('email edit replaces the text', () => {
 
 test('no reply means not approved', () => {
   assert.deepEqual(decideApproval(draft, null), { approved: false });
+});
+
+test('slotFor returns today at HH:MM UTC', () => {
+  const now = new Date('2026-07-10T03:00:00Z');
+  assert.equal(slotFor('12:30', now).toISOString(), '2026-07-10T12:30:00.000Z');
 });
