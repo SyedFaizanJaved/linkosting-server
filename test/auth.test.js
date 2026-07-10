@@ -34,3 +34,12 @@ test('requireCronSecret checks x-cron-secret header', () => {
   requireCronSecret({ headers: {} }, res, () => assert.fail('next called'));
   assert.equal(res.code, 401);
 });
+
+test('requireCronSecret fails closed when CRON_SECRET is unset', () => {
+  const saved = process.env.CRON_SECRET;
+  delete process.env.CRON_SECRET;
+  const res = mockRes();
+  requireCronSecret({ headers: {} }, res, () => assert.fail('next called'));
+  assert.equal(res.code, 401);
+  process.env.CRON_SECRET = saved;
+});

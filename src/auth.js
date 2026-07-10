@@ -11,6 +11,6 @@ export function requireJwt(req, res, next) {
 }
 
 export function requireCronSecret(req, res, next) {
-  if (req.headers['x-cron-secret'] === process.env.CRON_SECRET) return next();
+  if (process.env.CRON_SECRET && req.headers['x-cron-secret'] === process.env.CRON_SECRET) return next();
   res.status(401).json({ error: 'unauthorized' });
 }
