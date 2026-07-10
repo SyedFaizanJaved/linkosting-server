@@ -1,8 +1,8 @@
-name: daily-cron
+name: cron
 on:
   schedule:
-    - cron: '0 4 * * *'    # 09:00 PKT -> generate
-    - cron: '0 12 * * *'   # 17:00 PKT -> publish
+    - cron: '0 4 * * *'      # 09:00 PKT -> generate daily draft
+    - cron: '*/15 * * * *'   # publish anything approved & due
   workflow_dispatch:
     inputs:
       job:
