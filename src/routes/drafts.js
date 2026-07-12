@@ -114,4 +114,19 @@ router.post('/:id/regenerate', ah(async (req, res) => {
   res.json(u);
 }));
 
+// Discard a draft (used by the AI Generator's Discard action and the Library).
+// Posted drafts are live on LinkedIn and cannot be discarded.
+router.delete('/:id', ah(async (req, res) => {
+  const { rows: [d] } = await query(
+    `DELETE FROM drafts WHERE id=$1 AND status <> 'posted' RETURNING id`,
+    [req.params.id]
+  );
+  if (!d) {
+    const { rows: [exists] } = await query('SELECT status FROM drafts WHERE id=$1', [req.params.id]);
+    if (exists) return res.status(409).json({ error: 'cannot discard a posted draft' });
+    return res.status(404).json({ error: 'not found' });
+  }
+  res.json({ ok: true });
+}));
+
 export default router;
