@@ -59,10 +59,12 @@ router.post('/:id/approve', ah(async (req, res) => {
 
 router.put('/:id/schedule', ah(async (req, res) => {
   const { scheduled_at } = req.body || {};
-  const err = validateScheduledAt(scheduled_at === undefined ? undefined : scheduled_at);
+  const err = validateScheduledAt(scheduled_at);
   if (err) return res.status(400).json({ error: err });
   const { rows: [d] } = await query(
-    `UPDATE drafts SET scheduled_at=$2 WHERE id=$1 AND status <> 'posted' RETURNING *`,
+    `UPDATE drafts SET scheduled_at=$2,
+            status = CASE WHEN $2::timestamptz IS NULL AND status='approved' THEN 'pending' ELSE status END
+     WHERE id=$1 AND status <> 'posted' RETURNING *`,
     [req.params.id, scheduled_at]
   );
   if (!d) return res.status(409).json({ error: 'not found or already posted' });

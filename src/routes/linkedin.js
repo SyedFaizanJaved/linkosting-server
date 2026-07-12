@@ -18,7 +18,7 @@ router.get('/callback', ah(async (req, res) => {
   const { code, state, error, error_description } = req.query;
   const returnPath = String(state || '').endsWith(':o') ? '/onboarding' : '/settings';
   const back = params =>
-    res.redirect(`${process.env.CLIENT_ORIGIN}${returnPath}?${new URLSearchParams(params)}`);
+    res.redirect(`${process.env.CLIENT_ORIGIN || 'http://localhost:5173'}${returnPath}?${new URLSearchParams(params)}`);
 
   if (error) return back({ linkedin: 'error', reason: error_description || error });
   if (!code) return back({ linkedin: 'error', reason: 'Missing code' });
