@@ -26,12 +26,15 @@ router.post('/register', ah(async (req, res) => {
   const { email, password } = req.body || {};
   if (!email || !password) return res.status(400).json({ error: 'email and password are required' });
   if (password.length < 8) return res.status(400).json({ error: 'password must be at least 8 characters' });
-  const { rows: [{ count }] } = await query('SELECT count(*)::int AS count FROM users');
-  if (count > 0) return res.status(409).json({ error: 'an account already exists' });
   const hash = bcrypt.hashSync(password, 10);
+  // Single atomic statement: insert only when the users table is still empty,
+  // so two concurrent first-run registrations can't both create an account.
   const { rows: [user] } = await query(
-    'INSERT INTO users (email, password_hash) VALUES ($1,$2) RETURNING *', [email, hash]
+    `INSERT INTO users (email, password_hash)
+     SELECT $1, $2 WHERE NOT EXISTS (SELECT 1 FROM users)
+     RETURNING *`, [email, hash]
   );
+  if (!user) return res.status(409).json({ error: 'an account already exists' });
   res.status(201).json({ token: jwt.sign({ sub: user.id }, process.env.JWT_SECRET, { expiresIn: '30d' }) });
 }));
 
