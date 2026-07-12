@@ -11,8 +11,18 @@ export function deriveNotifications(drafts, settings, now = new Date()) {
   }
   if (settings.linkedin_token_expires_at) {
     const daysLeft = Math.floor((new Date(settings.linkedin_token_expires_at) - now) / 86400000);
-    if (daysLeft <= 7) {
-      out.push({ type: 'token', title: `LinkedIn token expires in ${daysLeft} day(s)`, detail: 'Reconnect in Settings.' });
+    if (daysLeft < 0) {
+      out.push({
+        type: 'token',
+        title: `LinkedIn connection expired ${-daysLeft} day(s) ago`,
+        detail: 'Reconnect in Settings to keep posting.',
+      });
+    } else if (daysLeft <= 7) {
+      out.push({
+        type: 'token',
+        title: daysLeft === 0 ? 'LinkedIn token expires today' : `LinkedIn token expires in ${daysLeft} day(s)`,
+        detail: 'Reconnect in Settings.',
+      });
     }
   }
   return out;

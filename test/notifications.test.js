@@ -26,3 +26,17 @@ test('token expiring within 7 days yields warning; missing expiry does not', () 
   assert.equal(n[0].type, 'token');
   assert.deepEqual(deriveNotifications([], {}, NOW), []);
 });
+
+test('expired token yields expired copy, not negative days', () => {
+  const past = new Date(NOW.getTime() - 3 * 86400000).toISOString();
+  const n = deriveNotifications([], { linkedin_token_expires_at: past }, NOW);
+  assert.equal(n[0].type, 'token');
+  assert.equal(n[0].title, 'LinkedIn connection expired 3 day(s) ago');
+  assert.equal(n[0].detail, 'Reconnect in Settings to keep posting.');
+});
+
+test('token expiring today says today', () => {
+  const later = new Date(NOW.getTime() + 3 * 3600000).toISOString();
+  const n = deriveNotifications([], { linkedin_token_expires_at: later }, NOW);
+  assert.equal(n[0].title, 'LinkedIn token expires today');
+});

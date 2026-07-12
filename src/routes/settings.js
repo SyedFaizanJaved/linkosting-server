@@ -19,7 +19,11 @@ router.get('/', ah(async (req, res) => {
     feeds: JSON.parse(s.feeds || '[]'),
     default_post_time: s.default_post_time || '12:00',
     onboarded: s.onboarded || '',
-    linkedin: { connected: !!s.linkedin_token, daysLeft },
+    linkedin: {
+      connected: !!s.linkedin_token && (daysLeft === null || daysLeft >= 0),
+      expired: !!s.linkedin_token && daysLeft !== null && daysLeft < 0,
+      daysLeft,
+    },
   });
 }));
 
