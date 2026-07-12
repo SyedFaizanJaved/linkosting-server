@@ -12,9 +12,10 @@ export function deriveNotifications(drafts, settings, now = new Date()) {
   if (settings.linkedin_token_expires_at) {
     const daysLeft = Math.floor((new Date(settings.linkedin_token_expires_at) - now) / 86400000);
     if (daysLeft < 0) {
+      const daysAgo = Math.floor((now - new Date(settings.linkedin_token_expires_at)) / 86400000);
       out.push({
         type: 'token',
-        title: `LinkedIn connection expired ${-daysLeft} day(s) ago`,
+        title: daysAgo === 0 ? 'LinkedIn connection expired today' : `LinkedIn connection expired ${daysAgo} day(s) ago`,
         detail: 'Reconnect in Settings to keep posting.',
       });
     } else if (daysLeft <= 7) {

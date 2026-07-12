@@ -40,3 +40,9 @@ test('token expiring today says today', () => {
   const n = deriveNotifications([], { linkedin_token_expires_at: later }, NOW);
   assert.equal(n[0].title, 'LinkedIn token expires today');
 });
+
+test('token expired hours ago says expired today', () => {
+  const justPast = new Date(NOW.getTime() - 3 * 3600000).toISOString();
+  const n = deriveNotifications([], { linkedin_token_expires_at: justPast }, NOW);
+  assert.equal(n[0].title, 'LinkedIn connection expired today');
+});
