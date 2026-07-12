@@ -26,9 +26,11 @@ test('no reply means not approved', () => {
   assert.deepEqual(decideApproval(draft, null), { approved: false });
 });
 
-test('slotFor returns today at HH:MM UTC', () => {
-  const now = new Date('2026-07-10T03:00:00Z');
-  assert.equal(slotFor('12:30', now).toISOString(), '2026-07-10T12:30:00.000Z');
+test('slotFor returns the next occurrence of HH:MM UTC', () => {
+  const now = new Date('2026-07-10T10:00:00Z');
+  assert.equal(slotFor('12:30', now).toISOString(), '2026-07-10T12:30:00.000Z'); // later today
+  assert.equal(slotFor('09:00', now).toISOString(), '2026-07-11T09:00:00.000Z'); // already past -> tomorrow
+  assert.equal(slotFor('10:00', now).toISOString(), '2026-07-10T10:00:00.000Z'); // exactly now -> today
 });
 
 // Finding 1 regression: once createPost has succeeded, the draft is posted — period.

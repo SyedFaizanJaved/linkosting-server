@@ -15,7 +15,9 @@ export function decideApproval(draft, replyText) {
 
 export function slotFor(hhmm, now = new Date()) {
   const [h, m] = (hhmm || '12:00').split(':').map(Number);
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), h, m));
+  const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), h, m));
+  if (d < now) d.setUTCDate(d.getUTCDate() + 1);
+  return d;
 }
 
 // deps param exists solely so tests can fake createPost/query/sendMail without a DB or network call.
