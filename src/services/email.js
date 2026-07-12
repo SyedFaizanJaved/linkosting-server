@@ -9,10 +9,10 @@ function transporter() {
   });
 }
 
-export async function sendMail(subject, text) {
+export async function sendMail(subject, text, to = process.env.APPROVER_EMAIL) {
   await transporter().sendMail({
     from: process.env.EMAIL_ADDRESS,
-    to: process.env.APPROVER_EMAIL,
+    to,
     subject,
     text,
   });
