@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { query, getAllSettings } from '../db/index.js';
 import { buildDraftsFilter } from '../db/draftsFilter.js';
 import { requireJwt } from '../middleware/auth.js';
-import { ah } from '../util.js';
+import { ah, validateScheduledAt } from '../util.js';
 import { publishDraft } from '../jobs/publish.js';
 import { generatePost } from '../services/gemini.js';
 
@@ -59,9 +59,8 @@ router.post('/:id/approve', ah(async (req, res) => {
 
 router.put('/:id/schedule', ah(async (req, res) => {
   const { scheduled_at } = req.body || {};
-  if (scheduled_at !== null && isNaN(Date.parse(scheduled_at))) {
-    return res.status(400).json({ error: 'scheduled_at must be an ISO datetime or null' });
-  }
+  const err = validateScheduledAt(scheduled_at === undefined ? undefined : scheduled_at);
+  if (err) return res.status(400).json({ error: err });
   const { rows: [d] } = await query(
     `UPDATE drafts SET scheduled_at=$2 WHERE id=$1 AND status <> 'posted' RETURNING *`,
     [req.params.id, scheduled_at]
