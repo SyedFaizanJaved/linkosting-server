@@ -8,23 +8,34 @@ import { ah } from '../util.js';
 const router = Router();
 
 router.get('/auth-url', requireJwt, ah(async (req, res) => {
-  const state = crypto.randomUUID();
+  const from = req.query.from === 'onboarding' ? 'o' : 's';
+  const state = `${crypto.randomUUID()}:${from}`;
   await setSetting('linkedin_oauth_state', state);
   res.json({ url: authUrl(state) });
 }));
 
 router.get('/callback', ah(async (req, res) => {
   const { code, state, error, error_description } = req.query;
-  if (error) return res.status(400).send(`LinkedIn error: ${error_description || error}`);
-  if (!code) return res.status(400).send('Missing code');
+  const returnPath = String(state || '').endsWith(':o') ? '/onboarding' : '/settings';
+  const back = params =>
+    res.redirect(`${process.env.CLIENT_ORIGIN}${returnPath}?${new URLSearchParams(params)}`);
+
+  if (error) return back({ linkedin: 'error', reason: error_description || error });
+  if (!code) return back({ linkedin: 'error', reason: 'Missing code' });
   const expected = await getSetting('linkedin_oauth_state');
-  if (!expected || state !== expected) return res.status(403).send('Invalid state');
+  if (!expected || state !== expected) {
+    return back({ linkedin: 'error', reason: 'Invalid state - start the connection again' });
+  }
   await setSetting('linkedin_oauth_state', '');
-  const { token, expiresAt, memberUrn } = await exchangeCode(code);
-  await setSetting('linkedin_token', token);
-  await setSetting('linkedin_token_expires_at', expiresAt);
-  await setSetting('linkedin_member_urn', memberUrn);
-  res.send('LinkedIn connected successfully. You can close this tab.');
+  try {
+    const { token, expiresAt, memberUrn } = await exchangeCode(code);
+    await setSetting('linkedin_token', token);
+    await setSetting('linkedin_token_expires_at', expiresAt);
+    await setSetting('linkedin_member_urn', memberUrn);
+  } catch {
+    return back({ linkedin: 'error', reason: 'LinkedIn rejected the connection - try again' });
+  }
+  return back({ linkedin: 'connected' });
 }));
 
 export default router;
