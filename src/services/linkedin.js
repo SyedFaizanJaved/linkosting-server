@@ -39,7 +39,40 @@ export async function exchangeCode(code) {
   };
 }
 
-export async function createPost(text, token, memberUrn) {
+export function buildShareContent({ text, assetUrn }) {
+  const share = { shareCommentary: { text }, shareMediaCategory: assetUrn ? 'IMAGE' : 'NONE' };
+  if (assetUrn) share.media = [{ status: 'READY', media: assetUrn }];
+  return { 'com.linkedin.ugc.ShareContent': share };
+}
+
+export async function uploadImage(bytes, mime, token, memberUrn) {
+  const reg = await fetch('https://api.linkedin.com/v2/assets?action=registerUpload', {
+    method: 'POST',
+    headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+    body: JSON.stringify({
+      registerUploadRequest: {
+        recipes: ['urn:li:digitalmediaRecipe:feedshare-image'],
+        owner: memberUrn,
+        serviceRelationships: [{ relationshipType: 'OWNER', identifier: 'urn:li:userGeneratedContent' }],
+      },
+    }),
+  });
+  if (!reg.ok) throw new Error(`LinkedIn registerUpload failed ${reg.status}: ${await reg.text()}`);
+  const j = await reg.json();
+  const uploadUrl = j.value.uploadMechanism['com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest'].uploadUrl;
+  const assetUrn = j.value.asset;
+
+  const put = await fetch(uploadUrl, {
+    method: 'PUT',
+    headers: { authorization: `Bearer ${token}`, 'content-type': mime || 'image/png' },
+    body: bytes,
+  });
+  if (!put.ok) throw new Error(`LinkedIn image upload failed ${put.status}: ${await put.text()}`);
+  return assetUrn;
+}
+
+export async function createPost(text, token, memberUrn, image = null) {
+  const assetUrn = image ? await uploadImage(image.bytes, image.mime, token, memberUrn) : null;
   const res = await fetch('https://api.linkedin.com/v2/ugcPosts', {
     method: 'POST',
     headers: {
@@ -50,12 +83,7 @@ export async function createPost(text, token, memberUrn) {
     body: JSON.stringify({
       author: memberUrn,
       lifecycleState: 'PUBLISHED',
-      specificContent: {
-        'com.linkedin.ugc.ShareContent': {
-          shareCommentary: { text },
-          shareMediaCategory: 'NONE',
-        },
-      },
+      specificContent: buildShareContent({ text, assetUrn }),
       visibility: { 'com.linkedin.ugc.MemberNetworkVisibility': 'PUBLIC' },
     }),
   });

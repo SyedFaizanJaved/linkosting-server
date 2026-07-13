@@ -14,3 +14,20 @@ test('authUrl embeds state, client id, redirect uri, scope', () => {
   assert.equal(u.searchParams.get('redirect_uri'), 'https://srv.example/api/linkedin/callback');
   assert.equal(u.searchParams.get('scope'), 'openid profile w_member_social');
 });
+
+import { buildShareContent } from '../src/services/linkedin.js';
+
+test('buildShareContent NONE branch has no media when no asset', () => {
+  const c = buildShareContent({ text: 'hi', assetUrn: null });
+  const share = c['com.linkedin.ugc.ShareContent'];
+  assert.equal(share.shareMediaCategory, 'NONE');
+  assert.equal(share.shareCommentary.text, 'hi');
+  assert.ok(!('media' in share));
+});
+
+test('buildShareContent IMAGE branch references the asset', () => {
+  const c = buildShareContent({ text: 'hi', assetUrn: 'urn:li:digitalmediaAsset:ABC' });
+  const share = c['com.linkedin.ugc.ShareContent'];
+  assert.equal(share.shareMediaCategory, 'IMAGE');
+  assert.deepEqual(share.media, [{ status: 'READY', media: 'urn:li:digitalmediaAsset:ABC' }]);
+});
