@@ -3,7 +3,9 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { query } from '../db/index.js';
 import { ah } from '../util.js';
+import { requireJwt } from '../middleware/auth.js';
 import { buildResetToken, verifyResetToken } from '../services/resetToken.js';
+import { setAuthCookies, clearAuthCookies, verifyRefresh } from '../services/tokens.js';
 import { sendMail } from '../services/email.js';
 
 const router = Router();
@@ -14,7 +16,31 @@ router.post('/login', ah(async (req, res) => {
   if (!user || !(await bcrypt.compare(password || '', user.password_hash))) {
     return res.status(401).json({ error: 'invalid credentials' });
   }
-  res.json({ token: jwt.sign({ sub: user.id }, process.env.JWT_SECRET, { expiresIn: '30d' }) });
+  setAuthCookies(res, user);
+  res.json({ ok: true });
+}));
+
+// Exchange a valid refresh cookie for a fresh access+refresh pair (rotation).
+router.post('/refresh', ah(async (req, res) => {
+  const token = req.cookies?.refresh_token;
+  let decoded = null;
+  try { decoded = jwt.decode(token); } catch { decoded = null; }
+  if (!decoded?.sub) { clearAuthCookies(res); return res.status(401).json({ error: 'unauthorized' }); }
+  const { rows: [user] } = await query('SELECT * FROM users WHERE id=$1', [decoded.sub]);
+  if (!user || !verifyRefresh(token, user)) { clearAuthCookies(res); return res.status(401).json({ error: 'unauthorized' }); }
+  setAuthCookies(res, user);
+  res.json({ ok: true });
+}));
+
+router.post('/logout', (req, res) => {
+  clearAuthCookies(res);
+  res.json({ ok: true });
+});
+
+router.get('/me', requireJwt, ah(async (req, res) => {
+  const { rows: [user] } = await query('SELECT email FROM users WHERE id=$1', [req.user.sub]);
+  if (!user) return res.status(401).json({ error: 'unauthorized' });
+  res.json({ email: user.email });
 }));
 
 router.get('/status', ah(async (req, res) => {
@@ -35,7 +61,8 @@ router.post('/register', ah(async (req, res) => {
      RETURNING *`, [email, hash]
   );
   if (!user) return res.status(409).json({ error: 'an account already exists' });
-  res.status(201).json({ token: jwt.sign({ sub: user.id }, process.env.JWT_SECRET, { expiresIn: '30d' }) });
+  setAuthCookies(res, user);
+  res.status(201).json({ ok: true });
 }));
 
 router.post('/forgot', ah(async (req, res) => {

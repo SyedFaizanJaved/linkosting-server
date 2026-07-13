@@ -11,17 +11,17 @@ function mockRes() {
   return { code: null, status(c) { this.code = c; return this; }, json() { return this; } };
 }
 
-test('requireJwt accepts a valid token', () => {
+test('requireJwt accepts a valid access-token cookie', () => {
   const token = jwt.sign({ sub: 1 }, 'test-secret');
   let called = false;
-  requireJwt({ headers: { authorization: `Bearer ${token}` } }, mockRes(), () => { called = true; });
+  requireJwt({ cookies: { access_token: token } }, mockRes(), () => { called = true; });
   assert.ok(called);
 });
 
-test('requireJwt rejects missing/invalid token with 401', () => {
-  for (const headers of [{}, { authorization: 'Bearer bad' }]) {
+test('requireJwt rejects missing/invalid cookie with 401', () => {
+  for (const cookies of [undefined, {}, { access_token: 'bad' }]) {
     const res = mockRes();
-    requireJwt({ headers }, res, () => assert.fail('next called'));
+    requireJwt({ cookies }, res, () => assert.fail('next called'));
     assert.equal(res.code, 401);
   }
 });

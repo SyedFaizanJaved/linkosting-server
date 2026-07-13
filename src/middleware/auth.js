@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
 
 export function requireJwt(req, res, next) {
-  const token = (req.headers.authorization || '').replace(/^Bearer /, '');
+  const token = req.cookies?.access_token;
   try {
     req.user = jwt.verify(token, process.env.JWT_SECRET);
     next();
