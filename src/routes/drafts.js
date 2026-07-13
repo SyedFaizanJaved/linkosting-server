@@ -122,6 +122,9 @@ router.post('/:id/regenerate', ah(async (req, res) => {
   const { rows: [d] } = await query('SELECT * FROM drafts WHERE id=$1 AND user_id=$2', [req.params.id, req.user.sub]);
   if (!d) return res.status(404).json({ error: 'not found' });
   if (d.status === 'posted') return res.status(409).json({ error: 'already posted' });
+  if (req.user.role !== 'admin' && !(await bumpUsage(req.user.sub, 'text'))) {
+    return res.status(429).json({ error: 'Daily generation limit reached — try again tomorrow.' });
+  }
   const s = await getUserSettings(req.user.sub);
   const content = await generatePost(
     { title: d.article_title, snippet: d.article_snippet || '', link: d.article_url },

@@ -58,10 +58,16 @@ router.post('/register', ah(async (req, res) => {
   const existing = await query('SELECT 1 FROM users WHERE email=$1', [email]);
   if (existing.rows.length) return res.status(409).json({ error: 'an account with this email already exists' });
   const hash = bcrypt.hashSync(password, 10);
-  const { rows: [user] } = await query(
-    `INSERT INTO users (email, password_hash, role, status)
-     VALUES ($1, $2, 'member', 'pending') RETURNING *`, [email, hash]
-  );
+  let user;
+  try {
+    ({ rows: [user] } = await query(
+      `INSERT INTO users (email, password_hash, role, status)
+       VALUES ($1, $2, 'member', 'pending') RETURNING *`, [email, hash]
+    ));
+  } catch (e) {
+    if (e.code === '23505') return res.status(409).json({ error: 'an account with this email already exists' });
+    throw e;
+  }
   await query('INSERT INTO user_settings (user_id) VALUES ($1) ON CONFLICT DO NOTHING', [user.id]);
   setAuthCookies(res, user);
   res.status(201).json({ ok: true });

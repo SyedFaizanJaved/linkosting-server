@@ -13,7 +13,7 @@ export async function runReminders() {
   const { rows } = await query(
     `SELECT d.id, d.status, d.reminder_sent, d.created_at, d.content, d.edited_content, u.email
      FROM drafts d JOIN users u ON u.id = d.user_id
-     WHERE d.status='pending' AND d.reminder_sent=false`
+     WHERE d.status='pending' AND d.reminder_sent=false AND u.status='active'`
   );
   const due = selectReminderDrafts(rows, new Date());
   for (const d of due) {
