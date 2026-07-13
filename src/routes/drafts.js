@@ -7,7 +7,7 @@ import { publishDraft } from '../jobs/publish.js';
 import { generatePost } from '../services/gemini.js';
 import { generateImage } from '../services/image.js';
 import { DRAFT_COLS } from '../db/draftCols.js';
-import { bumpUsage } from '../db/userSettings.js';
+import { bumpUsage, getUserSettings } from '../db/userSettings.js';
 
 const SOURCES = new Set(['generated', 'manual']);
 const router = Router();
@@ -143,7 +143,7 @@ router.post('/:id/image', ah(async (req, res) => {
   if (req.user.role !== 'admin' && !(await bumpUsage(req.user.sub, 'image'))) {
     return res.status(429).json({ error: 'Daily generation limit reached — try again tomorrow.' });
   }
-  const s = await getAllSettings();
+  const s = await getUserSettings(req.user.sub);
   const { bytes, mime } = await generateImage(d.edited_content || d.content, s);
   await query(
     `UPDATE drafts SET image=$2, image_mime=$3 WHERE id=$1 AND user_id=$4 AND status <> 'posted'`,

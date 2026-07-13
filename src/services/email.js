@@ -41,7 +41,7 @@ export async function sendMail(subject, text, to = process.env.APPROVER_EMAIL) {
   });
 }
 
-export async function fetchApprovalReply(draftId) {
+export async function fetchApprovalReply(draftId, ownerEmail) {
   const client = new ImapFlow({
     host: 'imap.gmail.com',
     port: 993,
@@ -61,7 +61,7 @@ export async function fetchApprovalReply(draftId) {
       const parsed = await simpleParser(msg.source);
       if (!/^re:/i.test((parsed.subject || '').trim())) continue;
       const from = parsed.from?.value?.[0]?.address?.toLowerCase() || '';
-      if (from !== process.env.APPROVER_EMAIL.toLowerCase()) continue;
+      if (from !== ownerEmail.toLowerCase()) continue;
       if (!latest || parsed.date > latest.date) latest = parsed;
     }
   } finally {

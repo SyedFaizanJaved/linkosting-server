@@ -3,10 +3,11 @@ on:
   schedule:
     - cron: '0 4 * * *'      # 09:00 PKT -> generate daily draft
     - cron: '*/15 * * * *'   # publish anything approved & due
+    - cron: '0 10 * * *'     # mid-afternoon PKT -> remind on still-pending drafts
   workflow_dispatch:
     inputs:
       job:
-        description: 'generate or publish'
+        description: 'generate, publish, or reminders'
         required: true
         default: 'publish'
       dryRun:
@@ -26,6 +27,9 @@ jobs:
             echo "body={\"dryRun\":${{ github.event.inputs.dryRun }}}" >> "$GITHUB_OUTPUT"
           elif [ "${{ github.event.schedule }}" = "0 4 * * *" ]; then
             echo "job=generate" >> "$GITHUB_OUTPUT"
+            echo "body={}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event.schedule }}" = "0 10 * * *" ]; then
+            echo "job=reminders" >> "$GITHUB_OUTPUT"
             echo "body={}" >> "$GITHUB_OUTPUT"
           else
             echo "job=publish" >> "$GITHUB_OUTPUT"

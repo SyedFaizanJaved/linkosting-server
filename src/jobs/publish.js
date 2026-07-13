@@ -60,7 +60,9 @@ export async function publishDraft(id, overrideText, deps = {}, userId) {
   // failures here are logged/swallowed, never rethrown.
   await _query('UPDATE drafts SET linkedin_post_id=$2, edited_content=$3 WHERE id=$1', [id, postId, text])
     .catch(err => console.error(`Failed to record linkedin_post_id for draft ${id}:`, err));
-  await _sendMail('Posted to LinkedIn ✔', `${text}\n\nhttps://www.linkedin.com/feed/update/${postId}/`).catch(() => {});
+  const { rows: [owner] } = await _query('SELECT email FROM users WHERE id=$1', [claimed.user_id])
+    .catch(() => ({ rows: [] }));
+  await _sendMail('Posted to LinkedIn ✔', `${text}\n\nhttps://www.linkedin.com/feed/update/${postId}/`, owner?.email).catch(() => {});
 
   return { id, result: 'posted', postId };
 }
@@ -78,7 +80,7 @@ async function runPublishForUser(userId, email, dryRun) {
     [userId]
   );
   if (daily) {
-    const reply = await fetchApprovalReply(daily.id);
+    const reply = await fetchApprovalReply(daily.id, email);
     const decision = decideApproval(daily, reply);
     if (decision.approved) {
       await query(
