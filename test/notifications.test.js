@@ -46,3 +46,21 @@ test('token expired hours ago says expired today', () => {
   const n = deriveNotifications([], { linkedin_token_expires_at: justPast }, NOW);
   assert.equal(n[0].title, 'LinkedIn connection expired today');
 });
+
+test('items carry a stable id and a read flag', () => {
+  const drafts = [{ id: 7, status: 'pending', article_title: 'T', created_at: NOW.toISOString() }];
+  const n = deriveNotifications(drafts, {}, NOW);
+  assert.equal(n[0].id, 'review:7');
+  assert.equal(n[0].read, false);
+});
+
+test('dismissed ids are filtered out; read ids are flagged read', () => {
+  const drafts = [
+    { id: 8, status: 'pending', article_title: 'A', created_at: NOW.toISOString() },
+    { id: 9, status: 'pending', article_title: 'B', created_at: NOW.toISOString() },
+  ];
+  const settings = { notif_dismissed: JSON.stringify(['review:8']), notif_read: JSON.stringify(['review:9']) };
+  const n = deriveNotifications(drafts, settings, NOW);
+  assert.deepEqual(n.map(x => x.id), ['review:9']);
+  assert.equal(n[0].read, true);
+});
