@@ -29,8 +29,11 @@ export async function updateUserSettings(userId, patch) {
 
 export function nextUsage(row, today, kind) {
   const cap = kind === 'image' ? Number(process.env.DAILY_IMAGE_CAP || 5) : Number(process.env.DAILY_TEXT_CAP || 10);
+  const pad = n => String(n).padStart(2, '0');
   const usageDay = row.usage_date == null ? null
-    : (row.usage_date instanceof Date ? row.usage_date.toISOString().slice(0, 10) : String(row.usage_date).slice(0, 10));
+    : (row.usage_date instanceof Date
+        ? `${row.usage_date.getFullYear()}-${pad(row.usage_date.getMonth() + 1)}-${pad(row.usage_date.getDate())}`
+        : String(row.usage_date).slice(0, 10));
   const stale = usageDay == null || usageDay !== today;
   const gen = stale ? 0 : row.gen_count;
   const img = stale ? 0 : row.image_count;
