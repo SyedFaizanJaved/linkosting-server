@@ -82,3 +82,14 @@ SELECT a.id,
   NULLIF((SELECT value FROM settings WHERE key='linkedin_token_expires_at'), '')::timestamptz
 FROM (SELECT id FROM users WHERE role='admin' ORDER BY id LIMIT 1) a
 ON CONFLICT (user_id) DO NOTHING;
+
+-- Per-user article uniqueness (drop the old global unique, add composite)
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'drafts_article_url_key') THEN
+    ALTER TABLE drafts DROP CONSTRAINT drafts_article_url_key;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'drafts_user_article_key') THEN
+    ALTER TABLE drafts ADD CONSTRAINT drafts_user_article_key UNIQUE (user_id, article_url);
+  END IF;
+END $$;
