@@ -124,7 +124,7 @@ router.post('/:id/image', ah(async (req, res) => {
   if (d.status === 'posted') return res.status(409).json({ error: 'already posted' });
   const s = await getAllSettings();
   const { bytes, mime } = await generateImage(d.edited_content || d.content, s);
-  await query('UPDATE drafts SET image=$2, image_mime=$3 WHERE id=$1', [d.id, bytes, mime]);
+  await query(`UPDATE drafts SET image=$2, image_mime=$3 WHERE id=$1 AND status <> 'posted'`, [d.id, bytes, mime]);
   res.json({ ok: true, hasImage: true });
 }));
 
