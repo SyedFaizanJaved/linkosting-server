@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken';
+import { query } from '../db/index.js';
 
 export function requireJwt(req, res, next) {
   const token = req.cookies?.access_token;
@@ -8,6 +9,22 @@ export function requireJwt(req, res, next) {
   } catch {
     res.status(401).json({ error: 'unauthorized' });
   }
+}
+
+// Loads role/status/id onto req.user (which already has .sub from requireJwt).
+export async function loadUser(req, res, next) {
+  try {
+    const { rows: [u] } = await query('SELECT id, email, role, status FROM users WHERE id=$1', [req.user?.sub]);
+    if (!u) return res.status(401).json({ error: 'unauthorized' });
+    req.user = { ...req.user, id: u.id, email: u.email, role: u.role, status: u.status };
+    next();
+  } catch (e) { next(e); }
+}
+
+export function requireActive(req, res, next) {
+  if (!req.user?.status) return res.status(401).json({ error: 'unauthorized' });
+  if (req.user.status !== 'active') return res.status(403).json({ error: 'account not active' });
+  next();
 }
 
 export function requireCronSecret(req, res, next) {

@@ -38,9 +38,12 @@ router.post('/logout', (req, res) => {
 });
 
 router.get('/me', requireJwt, ah(async (req, res) => {
-  const { rows: [user] } = await query('SELECT email FROM users WHERE id=$1', [req.user.sub]);
-  if (!user) return res.status(401).json({ error: 'unauthorized' });
-  res.json({ email: user.email });
+  const { rows: [u] } = await query(
+    `SELECT u.email, u.role, u.status, COALESCE(s.onboarded, false) AS onboarded
+     FROM users u LEFT JOIN user_settings s ON s.user_id = u.id WHERE u.id=$1`, [req.user.sub]
+  );
+  if (!u) return res.status(401).json({ error: 'unauthorized' });
+  res.json({ email: u.email, role: u.role, status: u.status, onboarded: u.onboarded });
 }));
 
 router.get('/status', ah(async (req, res) => {
@@ -52,15 +55,14 @@ router.post('/register', ah(async (req, res) => {
   const { email, password } = req.body || {};
   if (!email || !password) return res.status(400).json({ error: 'email and password are required' });
   if (password.length < 8) return res.status(400).json({ error: 'password must be at least 8 characters' });
+  const existing = await query('SELECT 1 FROM users WHERE email=$1', [email]);
+  if (existing.rows.length) return res.status(409).json({ error: 'an account with this email already exists' });
   const hash = bcrypt.hashSync(password, 10);
-  // Single atomic statement: insert only when the users table is still empty,
-  // so two concurrent first-run registrations can't both create an account.
   const { rows: [user] } = await query(
-    `INSERT INTO users (email, password_hash)
-     SELECT $1, $2 WHERE NOT EXISTS (SELECT 1 FROM users)
-     RETURNING *`, [email, hash]
+    `INSERT INTO users (email, password_hash, role, status)
+     VALUES ($1, $2, 'member', 'pending') RETURNING *`, [email, hash]
   );
-  if (!user) return res.status(409).json({ error: 'an account already exists' });
+  await query('INSERT INTO user_settings (user_id) VALUES ($1) ON CONFLICT DO NOTHING', [user.id]);
   setAuthCookies(res, user);
   res.status(201).json({ ok: true });
 }));
