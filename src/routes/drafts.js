@@ -5,6 +5,7 @@ import { requireJwt } from '../middleware/auth.js';
 import { ah, validateScheduledAt } from '../util.js';
 import { publishDraft } from '../jobs/publish.js';
 import { generatePost } from '../services/gemini.js';
+import { generateImage } from '../services/image.js';
 import { DRAFT_COLS } from '../db/draftCols.js';
 
 const SOURCES = new Set(['generated', 'manual']);
@@ -115,6 +116,31 @@ router.post('/:id/regenerate', ah(async (req, res) => {
     [d.id, content]
   );
   res.json(u);
+}));
+
+router.post('/:id/image', ah(async (req, res) => {
+  const { rows: [d] } = await query('SELECT id, status, content, edited_content FROM drafts WHERE id=$1', [req.params.id]);
+  if (!d) return res.status(404).json({ error: 'not found' });
+  if (d.status === 'posted') return res.status(409).json({ error: 'already posted' });
+  const s = await getAllSettings();
+  const { bytes, mime } = await generateImage(d.edited_content || d.content, s);
+  await query('UPDATE drafts SET image=$2, image_mime=$3 WHERE id=$1', [d.id, bytes, mime]);
+  res.json({ ok: true, hasImage: true });
+}));
+
+router.delete('/:id/image', ah(async (req, res) => {
+  const { rows: [d] } = await query(
+    `UPDATE drafts SET image=NULL, image_mime=NULL WHERE id=$1 AND status <> 'posted' RETURNING id`,
+    [req.params.id]
+  );
+  if (!d) return res.status(409).json({ error: 'not found or already posted' });
+  res.json({ ok: true, hasImage: false });
+}));
+
+router.get('/:id/image', ah(async (req, res) => {
+  const { rows: [d] } = await query('SELECT image, image_mime FROM drafts WHERE id=$1', [req.params.id]);
+  if (!d || !d.image) return res.status(404).json({ error: 'no image' });
+  res.type(d.image_mime || 'image/png').send(d.image);
 }));
 
 // Discard a draft (used by the AI Generator's Discard action and the Library).

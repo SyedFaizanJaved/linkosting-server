@@ -44,7 +44,8 @@ export async function publishDraft(id, overrideText, deps = {}) {
 
   let postId;
   try {
-    postId = await _createPost(text, s.linkedin_token, s.linkedin_member_urn);
+    const image = claimed.image ? { bytes: claimed.image, mime: claimed.image_mime } : null;
+    postId = await _createPost(text, s.linkedin_token, s.linkedin_member_urn, image);
   } catch (e) {
     await _query(`UPDATE drafts SET status=$2, posted_at=NULL WHERE id=$1`, [id, claimed.prev_status]);
     throw e;
