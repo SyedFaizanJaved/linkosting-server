@@ -79,6 +79,6 @@ SELECT a.id,
   COALESCE(NULLIF((SELECT value FROM settings WHERE key='onboarded'), ''), 'false')::boolean,
   (SELECT value FROM settings WHERE key='linkedin_token'),
   (SELECT value FROM settings WHERE key='linkedin_member_urn'),
-  (SELECT value FROM settings WHERE key='linkedin_token_expires_at')::timestamptz
+  NULLIF((SELECT value FROM settings WHERE key='linkedin_token_expires_at'), '')::timestamptz
 FROM (SELECT id FROM users WHERE role='admin' ORDER BY id LIMIT 1) a
 ON CONFLICT (user_id) DO NOTHING;

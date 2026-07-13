@@ -30,3 +30,14 @@ test('null usage_date is treated as stale (first use)', () => {
   const r = nextUsage({ gen_count: 0, image_count: 0, usage_date: null }, '2026-07-13', 'text');
   assert.deepEqual(r, { gen_count: 1, image_count: 0, usage_date: '2026-07-13', overCap: false });
 });
+
+test('same-day Date object (as pg returns) is not treated as stale', () => {
+  const r = nextUsage({ gen_count: 2, image_count: 0, usage_date: new Date('2026-07-13T00:00:00Z') }, '2026-07-13', 'text');
+  assert.equal(r.gen_count, 3);
+  assert.equal(r.overCap, false);
+});
+
+test('at cap with a Date object usage_date reports overCap', () => {
+  const r = nextUsage({ gen_count: 3, image_count: 0, usage_date: new Date('2026-07-13T00:00:00Z') }, '2026-07-13', 'text');
+  assert.equal(r.overCap, true);
+});
