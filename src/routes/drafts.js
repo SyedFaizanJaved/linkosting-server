@@ -7,6 +7,7 @@ import { publishDraft } from '../jobs/publish.js';
 import { generatePost } from '../services/gemini.js';
 import { generateImage } from '../services/image.js';
 import { DRAFT_COLS } from '../db/draftCols.js';
+import { bumpUsage } from '../db/userSettings.js';
 
 const SOURCES = new Set(['generated', 'manual']);
 const router = Router();
@@ -139,6 +140,9 @@ router.post('/:id/image', ah(async (req, res) => {
   );
   if (!d) return res.status(404).json({ error: 'not found' });
   if (d.status === 'posted') return res.status(409).json({ error: 'already posted' });
+  if (req.user.role !== 'admin' && !(await bumpUsage(req.user.sub, 'image'))) {
+    return res.status(429).json({ error: 'Daily generation limit reached — try again tomorrow.' });
+  }
   const s = await getAllSettings();
   const { bytes, mime } = await generateImage(d.edited_content || d.content, s);
   await query(

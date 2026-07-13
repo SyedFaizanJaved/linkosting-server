@@ -65,13 +65,17 @@ export async function publishDraft(id, overrideText, deps = {}, userId) {
   return { id, result: 'posted', postId };
 }
 
-export async function runPublish({ dryRun = false } = {}) {
-  const s = await getAllSettings();
+// Runs the 4-step publish pipeline for a single user's drafts. Any error thrown here
+// (e.g. the IMAP approval-reply fetch) is caught by the per-user loop in runPublish.
+async function runPublishForUser(userId, email, dryRun) {
+  const s = await getUserSettings(userId);
+  const published = [];
 
   // 1. Apply email approval to today's pending daily draft
   const { rows: [daily] } = await query(
-    `SELECT * FROM drafts WHERE source='daily' AND status='pending'
-     AND created_at::date = now()::date ORDER BY created_at DESC LIMIT 1`
+    `SELECT * FROM drafts WHERE user_id=$1 AND source='daily' AND status='pending'
+     AND created_at::date = now()::date ORDER BY created_at DESC LIMIT 1`,
+    [userId]
   );
   if (daily) {
     const reply = await fetchApprovalReply(daily.id);
@@ -87,31 +91,43 @@ export async function runPublish({ dryRun = false } = {}) {
 
   // 2. Approved drafts without a slot get today's default slot
   await query(
-    `UPDATE drafts SET scheduled_at=$1 WHERE status='approved' AND scheduled_at IS NULL`,
-    [slotFor(s.default_post_time)]
+    `UPDATE drafts SET scheduled_at=$2 WHERE user_id=$1 AND status='approved' AND scheduled_at IS NULL`,
+    [userId, slotFor(s.default_post_time)]
   );
 
   // 3. Skip yesterday-or-older daily drafts never approved
   await query(
     `UPDATE drafts SET status='skipped'
-     WHERE source='daily' AND status='pending' AND created_at::date < now()::date`
+     WHERE user_id=$1 AND source='daily' AND status='pending' AND created_at::date < now()::date`,
+    [userId]
   );
 
   // 4. Publish everything approved and due
-  if (!s.linkedin_token || !s.linkedin_member_urn) {
-    return { published: [], result: 'linkedin-not-connected' };
-  }
+  if (!s.linkedin_token || !s.linkedin_member_urn) return published;
   const { rows: due } = await query(
-    `SELECT id FROM drafts WHERE status='approved' AND scheduled_at <= now() ORDER BY scheduled_at`
+    `SELECT id FROM drafts WHERE user_id=$1 AND status='approved' AND scheduled_at <= now() ORDER BY scheduled_at`,
+    [userId]
   );
-  const published = [];
   for (const { id } of due) {
     if (dryRun) { published.push({ id, result: 'dry-run' }); continue; }
     try {
-      published.push(await publishDraft(id));
+      published.push(await publishDraft(id, undefined, {}, userId));
     } catch (e) {
-      await sendMail('LinkedIn automation FAILED: publish', String(e.stack || e)).catch(() => {});
+      await sendMail('LinkedIn automation FAILED: publish', String(e.stack || e), email).catch(() => {});
       published.push({ id, result: 'error', error: String(e.message || e) });
+    }
+  }
+  return published;
+}
+
+export async function runPublish({ dryRun = false } = {}) {
+  const { rows: users } = await query(`SELECT id, email FROM users WHERE status='active'`);
+  const published = [];
+  for (const { id: userId, email } of users) {
+    try {
+      published.push(...await runPublishForUser(userId, email, dryRun));
+    } catch (e) {
+      await sendMail('LinkedIn automation FAILED: publish', String(e.stack || e), email).catch(() => {});
     }
   }
   return { published };
