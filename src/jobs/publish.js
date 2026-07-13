@@ -1,4 +1,5 @@
 import { query, getAllSettings } from '../db/index.js';
+import { getUserSettings } from '../db/userSettings.js';
 import { parseReply } from '../services/replyParser.js';
 import { fetchApprovalReply, sendMail } from '../services/email.js';
 import { createPost } from '../services/linkedin.js';
@@ -21,23 +22,27 @@ export function slotFor(hhmm, now = new Date()) {
 }
 
 // deps param exists solely so tests can fake createPost/query/sendMail without a DB or network call.
-export async function publishDraft(id, overrideText, deps = {}) {
+// userId scopes the claim to that user's drafts and their settings; omit it (existing tests, and
+// runPublish's pre-Task-6 call) to fall back to the unscoped global-settings behavior.
+export async function publishDraft(id, overrideText, deps = {}, userId) {
   const {
     getAllSettings: _getAllSettings = getAllSettings,
+    getUserSettings: _getUserSettings = getUserSettings,
     query: _query = query,
     createPost: _createPost = createPost,
     sendMail: _sendMail = sendMail,
   } = deps;
 
-  const s = await _getAllSettings();
+  const s = userId != null ? await _getUserSettings(userId) : await _getAllSettings();
   if (!s.linkedin_token || !s.linkedin_member_urn) {
     throw new Error('LinkedIn not connected — open Settings and click Connect LinkedIn.');
   }
   const { rows: [claimed] } = await _query(
     `WITH prev AS (SELECT status FROM drafts WHERE id=$1)
      UPDATE drafts SET status='posted', posted_at=now()
-     WHERE id=$1 AND status IN ('pending','approved')
-     RETURNING drafts.*, (SELECT status FROM prev) AS prev_status`, [id]
+     WHERE id=$1 ${userId != null ? 'AND user_id=$2' : ''} AND status IN ('pending','approved')
+     RETURNING drafts.*, (SELECT status FROM prev) AS prev_status`,
+    userId != null ? [id, userId] : [id]
   );
   if (!claimed) throw new Error('draft not found or already posted');
   const text = overrideText || claimed.edited_content || claimed.content;
