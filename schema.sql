@@ -93,3 +93,7 @@ BEGIN
     ALTER TABLE drafts ADD CONSTRAINT drafts_user_article_key UNIQUE (user_id, article_url);
   END IF;
 END $$;
+
+-- Per-user notification read/dismissed state (was global, cross-user)
+ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS notif_read TEXT DEFAULT '[]';
+ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS notif_dismissed TEXT DEFAULT '[]';

@@ -5,6 +5,7 @@ const DEFAULTS = {
   onboarded: false, daily_draft_enabled: false,
   linkedin_token: null, linkedin_member_urn: null, linkedin_token_expires_at: null,
   linkedin_oauth_state: null, gen_count: 0, image_count: 0, usage_date: null,
+  notif_read: '[]', notif_dismissed: '[]',
 };
 
 const COLS = Object.keys(DEFAULTS);
