@@ -18,8 +18,8 @@ Rules:
 - The first line must hook the reader on its own.
 - Short paragraphs (1-3 sentences), blank line between them.
 - Give one concrete, practical takeaway.
-- Do NOT include any URL.
-- End with these hashtags: ${settings.hashtags}
+- Near the end, on its own line, add exactly: Read more: ${article.link}
+- End with 3-5 hashtags that genuinely fit THIS post's topic and content (prefer these if they fit: ${settings.hashtags}). Do not reuse a generic set on every post.
 - Output ONLY the post text, nothing else.`;
 }
 
@@ -35,8 +35,8 @@ ${prompt}
 Rules:
 - The first line must hook the reader on its own.
 - Short paragraphs (1-3 sentences), blank line between them.
-- Do NOT include any URL.
-- End with these hashtags: ${settings.hashtags}
+- Do NOT include any URL or link (there is no real source to cite — never invent one).
+- End with 3-5 hashtags that genuinely fit THIS post's topic and content (prefer these if they fit: ${settings.hashtags}). Do not reuse a generic set on every post.
 - Output ONLY the post text, nothing else.`;
 }
 

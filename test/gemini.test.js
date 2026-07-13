@@ -29,3 +29,21 @@ test('unknown length falls back to medium band', () => {
   );
   assert.ok(p.includes('120-180'));
 });
+
+test('daily prompt includes the source link and asks for post-specific hashtags', () => {
+  const p = buildPrompt(
+    { title: 'T', snippet: 'S', link: 'https://news.example.com/story' },
+    { topics: 'AI', tone: 't', hashtags: '#AI' }
+  );
+  assert.ok(p.includes('Read more: https://news.example.com/story'), 'source link missing');
+  assert.ok(/hashtags that genuinely fit/i.test(p), 'post-specific hashtag instruction missing');
+});
+
+test('variant prompt forbids inventing URLs and asks for post-specific hashtags', () => {
+  const p = buildVariantPrompt(
+    { prompt: 'x', tone: 'bold', length: 'short', angle: ANGLES[0] },
+    { topics: 'AI', tone: 't', hashtags: '#AI' }
+  );
+  assert.ok(/never invent one/i.test(p), 'no-URL instruction missing');
+  assert.ok(/hashtags that genuinely fit/i.test(p), 'post-specific hashtag instruction missing');
+});
