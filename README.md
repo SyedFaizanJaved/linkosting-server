@@ -45,6 +45,17 @@ Daily drafts approved by email get `default_post_time` (HH:MM UTC) as their slot
 Unapproved daily drafts are skipped the next day. Publishing claims the row
 atomically, so overlapping cron runs cannot double-post.
 
+## Multi-user
+
+New registrations are `pending` until approved — they can't log in yet.
+Until the admin panel ships, approve or deactivate a user directly against
+the database:
+
+```sql
+UPDATE users SET status='active' WHERE email='...';
+UPDATE users SET status='deactivated' WHERE email='...';
+```
+
 ## Test
 
 `npm test` (node:test, pure logic). Dry-run:
