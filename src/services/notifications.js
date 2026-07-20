@@ -6,7 +6,8 @@ export function parseList(v) {
 
 // Notifications are derived (no table). Each gets a STABLE id so the dashboard
 // can mark it read or dismiss it via the settings-stored read/dismissed lists.
-export function deriveNotifications(drafts, settings, now = new Date()) {
+// pendingUsers is only ever non-empty for an admin — the caller decides that.
+export function deriveNotifications(drafts, settings, now = new Date(), pendingUsers = []) {
   const dismissed = new Set(parseList(settings.notif_dismissed));
   const read = new Set(parseList(settings.notif_read));
   const out = [];
@@ -18,6 +19,10 @@ export function deriveNotifications(drafts, settings, now = new Date()) {
     } else if (d.status === 'posted' && d.posted_at && now - new Date(d.posted_at) <= RECENT_MS) {
       add({ id: `posted:${d.id}`, type: 'posted', title: 'Published to LinkedIn', detail: d.article_title, draftId: d.id });
     }
+  }
+
+  for (const u of pendingUsers) {
+    add({ id: `member:${u.id}`, type: 'member', title: 'New sign-up awaiting approval', detail: u.email });
   }
 
   if (settings.linkedin_token_expires_at) {

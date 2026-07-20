@@ -71,6 +71,14 @@ router.post('/register', ah(async (req, res) => {
   await query('INSERT INTO user_settings (user_id) VALUES ($1) ON CONFLICT DO NOTHING', [user.id]);
   setAuthCookies(res, user);
   res.status(201).json({ ok: true });
+
+  // After the response, and swallowed: a mail outage must never fail a signup
+  // that already succeeded. The in-app notification covers us if this is lost.
+  sendMail(
+    'Linkosting: new sign-up awaiting approval',
+    `${email} just registered and is pending approval.\n\nApprove or decline them in Settings → Members.`,
+    process.env.ADMIN_EMAIL
+  ).catch(e => console.error('[register] admin notify failed:', e.message));
 }));
 
 router.post('/forgot', ah(async (req, res) => {

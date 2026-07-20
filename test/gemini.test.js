@@ -1,6 +1,37 @@
 import test from 'node:test';
 import assert from 'node:assert';
-import { buildPrompt, buildVariantPrompt, ANGLES } from '../src/services/gemini.js';
+import { buildPrompt, buildVariantPrompt, ANGLES, buildRequest, parseResponse } from '../src/services/gemini.js';
+
+test('groq builds an OpenAI-shaped chat request with bearer auth', () => {
+  process.env.GROQ_API_KEY = 'gk-test';
+  process.env.GROQ_MODEL = 'llama-3.3-70b-versatile';
+  const r = buildRequest('groq', 'hello');
+  assert.match(r.url, /api\.groq\.com/);
+  assert.equal(r.headers.authorization, 'Bearer gk-test');
+  assert.equal(r.body.model, 'llama-3.3-70b-versatile');
+  assert.deepEqual(r.body.messages, [{ role: 'user', content: 'hello' }]);
+  assert.ok(!r.url.includes('gk-test'), 'key must not leak into the URL');
+});
+
+test('gemini builds a contents-shaped request with the key in the query', () => {
+  process.env.GEMINI_API_KEY = 'gm-test';
+  const r = buildRequest('gemini', 'hello');
+  assert.match(r.url, /generativelanguage\.googleapis\.com/);
+  assert.match(r.url, /key=gm-test/);
+  assert.equal(r.body.contents[0].parts[0].text, 'hello');
+  assert.equal(r.headers.authorization, undefined);
+});
+
+test('each provider parses text out of its own response shape', () => {
+  assert.equal(parseResponse('groq', { choices: [{ message: { content: '  post  ' } }] }), 'post');
+  assert.equal(parseResponse('gemini', { candidates: [{ content: { parts: [{ text: ' post ' }] } }] }), 'post');
+});
+
+test('an empty or cross-shaped response throws rather than returning junk', () => {
+  assert.throws(() => parseResponse('groq', { candidates: [] }), /groq returned no text/);
+  assert.throws(() => parseResponse('gemini', { choices: [] }), /gemini returned no text/);
+  assert.throws(() => parseResponse('groq', { choices: [{ message: { content: '' } }] }), /no text/);
+});
 
 test('prompt embeds article, tone, topics, hashtags', () => {
   const p = buildPrompt(

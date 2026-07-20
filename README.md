@@ -30,7 +30,26 @@ lives in the separate `linkedin-post-client` repo.
 4. **LinkedIn app:** developers.linkedin.com → products "Share on LinkedIn" +
    "Sign In with LinkedIn using OpenID Connect" → redirect URL
    `<SERVER_URL>/api/linkedin/callback` → `LINKEDIN_CLIENT_ID/SECRET`.
-5. **Local:** `cp .env.example .env`, fill, `npm install && npm run db:init && npm run dev`.
+5. **Local:** create `.env` (see below), `npm install && npm run db:init && npm run dev`.
+
+### Env vars
+
+```
+DATABASE_URL=        PORT=4000
+JWT_SECRET=          CRON_SECRET=            # long random strings
+AI_PROVIDER=groq     # gemini | groq — text generation only
+GROQ_API_KEY=        GROQ_MODEL=llama-3.3-70b-versatile
+GEMINI_API_KEY=      GEMINI_MODEL=gemini-flash-latest
+GEMINI_IMAGE_MODEL=gemini-2.5-flash-image
+EMAIL_ADDRESS=       EMAIL_APP_PASSWORD=     APPROVER_EMAIL=
+CLIENT_ORIGIN=       SERVER_URL=
+LINKEDIN_CLIENT_ID=  LINKEDIN_CLIENT_SECRET=
+ADMIN_EMAIL=         ADMIN_PASSWORD=
+```
+
+`GEMINI_API_KEY` is required even when `AI_PROVIDER=groq` — post images are
+Gemini-only (Groq serves no image model). Google keys start `AIza`; Groq keys
+start `gsk_` — they are not interchangeable.
 6. **Deploy (Render, free):** Web Service, build `npm install`, start `npm start`,
    all env vars set. Run `npm run db:init` once against the same `DATABASE_URL`.
 7. **Cron (GitHub Actions):** repo secrets `SERVER_URL`, `CRON_SECRET`.

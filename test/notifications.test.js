@@ -64,3 +64,23 @@ test('dismissed ids are filtered out; read ids are flagged read', () => {
   assert.deepEqual(n.map(x => x.id), ['review:9']);
   assert.equal(n[0].read, true);
 });
+
+test('pending sign-ups become notifications with a stable member id', () => {
+  const n = deriveNotifications([], {}, NOW, [{ id: 16, email: 'new@x.com' }]);
+  assert.equal(n.length, 1);
+  assert.equal(n[0].id, 'member:16');
+  assert.equal(n[0].type, 'member');
+  assert.equal(n[0].detail, 'new@x.com');
+});
+
+test('a member notification can be dismissed and marked read like any other', () => {
+  const users = [{ id: 16, email: 'a@x.com' }, { id: 17, email: 'b@x.com' }];
+  const settings = { notif_dismissed: JSON.stringify(['member:16']), notif_read: JSON.stringify(['member:17']) };
+  const n = deriveNotifications([], settings, NOW, users);
+  assert.deepEqual(n.map(x => x.id), ['member:17']);
+  assert.equal(n[0].read, true);
+});
+
+test('non-admins pass no pending users, so they see no member notifications', () => {
+  assert.deepEqual(deriveNotifications([], {}, NOW), []);
+});

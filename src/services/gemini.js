@@ -40,27 +40,54 @@ Rules:
 - Output ONLY the post text, nothing else.`;
 }
 
-async function callGemini(text) {
+// ponytail: text generation is provider-switchable (AI_PROVIDER=gemini|groq).
+// Image generation stays Gemini-only — Groq serves no image model. See image.js.
+export const provider = () => (process.env.AI_PROVIDER || 'gemini').toLowerCase();
+
+// Split from the fetch so the per-provider request/response shapes are testable
+// without a network call.
+export function buildRequest(name, text) {
+  if (name === 'groq') {
+    const model = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
+    return {
+      url: 'https://api.groq.com/openai/v1/chat/completions',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+      },
+      body: { model, messages: [{ role: 'user', content: text }] },
+    };
+  }
   const model = process.env.GEMINI_MODEL || 'gemini-flash-latest';
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`;
-  const res = await fetch(url, {
-    method: 'POST',
+  return {
+    url: `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`,
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ contents: [{ parts: [{ text }] }] }),
-  });
-  if (!res.ok) throw new Error(`Gemini ${res.status}: ${await res.text()}`);
-  const data = await res.json();
-  const out = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-  if (!out) throw new Error('Gemini returned no text');
+    body: { contents: [{ parts: [{ text }] }] },
+  };
+}
+
+export function parseResponse(name, data) {
+  const out = name === 'groq'
+    ? data.choices?.[0]?.message?.content?.trim()
+    : data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+  if (!out) throw new Error(`${name} returned no text`);
   return out;
 }
 
+async function callLLM(text) {
+  const name = provider();
+  const { url, headers, body } = buildRequest(name, text);
+  const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
+  if (!res.ok) throw new Error(`${name} ${res.status}: ${await res.text()}`);
+  return parseResponse(name, await res.json());
+}
+
 export async function generatePost(article, settings) {
-  return callGemini(buildPrompt(article, settings));
+  return callLLM(buildPrompt(article, settings));
 }
 
 export async function generateVariants({ prompt, tone, length }, settings) {
   return Promise.all(ANGLES.map(angle =>
-    callGemini(buildVariantPrompt({ prompt, tone, length, angle }, settings))
+    callLLM(buildVariantPrompt({ prompt, tone, length, angle }, settings))
   ));
 }

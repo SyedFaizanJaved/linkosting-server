@@ -10,6 +10,7 @@ import settingsRoutes from './routes/settings.js';
 import generateRoutes from './routes/generate.js';
 import analyticsRoutes from './routes/analytics.js';
 import notificationRoutes from './routes/notifications.js';
+import adminRoutes from './routes/admin.js';
 
 export function buildApp() {
   const app = express();
@@ -26,6 +27,7 @@ export function buildApp() {
   app.use('/api/generate', generateRoutes);
   app.use('/api/analytics', analyticsRoutes);
   app.use('/api/notifications', notificationRoutes);
+  app.use('/api/admin', adminRoutes);
   app.use((err, req, res, next) => res.status(500).json({ error: String(err.message || err) }));
   return app;
 }

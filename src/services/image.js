@@ -13,6 +13,10 @@ Requirements:
 }
 
 export async function generateImage(postText, settings) {
+  // ponytail: always Gemini — Groq has no image model. Text provider is independent.
+  if (!process.env.GEMINI_API_KEY) {
+    throw new Error('Image generation needs GEMINI_API_KEY (Groq serves no image model). Keep the key set even when AI_PROVIDER=groq.');
+  }
   const model = process.env.GEMINI_IMAGE_MODEL || 'gemini-2.5-flash-image';
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`;
   const res = await fetch(url, {

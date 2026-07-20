@@ -27,6 +27,12 @@ export function requireActive(req, res, next) {
   next();
 }
 
+// 404, not 403: a non-admin should not learn the admin surface exists.
+export function requireAdmin(req, res, next) {
+  if (req.user?.role !== 'admin') return res.status(404).json({ error: 'not found' });
+  next();
+}
+
 export function requireCronSecret(req, res, next) {
   if (process.env.CRON_SECRET && req.headers['x-cron-secret'] === process.env.CRON_SECRET) return next();
   res.status(401).json({ error: 'unauthorized' });
