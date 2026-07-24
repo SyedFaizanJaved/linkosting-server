@@ -1,5 +1,10 @@
 export const ah = fn => (req, res, next) => fn(req, res, next).catch(next);
 
+export const isStr = (v, max) => typeof v === 'string' && v.length <= max;
+export const isEmail = v => isStr(v, 254) && /^\S+@\S+\.\S+$/.test(v);
+export const isFeedList = v =>
+  Array.isArray(v) && v.length <= 20 && v.every(f => isStr(f, 500) && /^https?:\/\//i.test(f));
+
 export function validateScheduledAt(value, now = Date.now()) {
   if (value === null) return null;
   const t = Date.parse(value);

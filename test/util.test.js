@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert';
-import { validateScheduledAt } from '../src/util.js';
+import { validateScheduledAt, isEmail, isStr, isFeedList } from '../src/util.js';
 
 const NOW = Date.parse('2026-07-12T12:00:00Z');
 
@@ -23,4 +23,31 @@ test('past datetime is rejected', () => {
 test('garbage and undefined are rejected as non-ISO', () => {
   assert.equal(validateScheduledAt('tomorrowish', NOW), 'scheduled_at must be an ISO datetime or null');
   assert.equal(validateScheduledAt(undefined, NOW), 'scheduled_at must be an ISO datetime or null');
+});
+
+test('isEmail accepts normal addresses, rejects junk and non-strings', () => {
+  assert.ok(isEmail('a@b.co'));
+  assert.equal(isEmail('not-an-email'), false);
+  assert.equal(isEmail(''), false);
+  assert.equal(isEmail(null), false);
+  assert.equal(isEmail({ toString: () => 'a@b.co' }), false);
+  assert.equal(isEmail('a@b.co'.padEnd(255, 'x')), false); // >254 chars
+});
+
+test('isFeedList allows up to 20 http(s) URLs, rejects anything else', () => {
+  assert.ok(isFeedList([]));
+  assert.ok(isFeedList(['https://a.com/rss', 'http://b.com/feed']));
+  assert.equal(isFeedList('https://a.com'), false);            // not an array
+  assert.equal(isFeedList(['ftp://a.com']), false);            // wrong scheme
+  assert.equal(isFeedList(['javascript:alert(1)']), false);
+  assert.equal(isFeedList([42]), false);                       // non-string
+  assert.equal(isFeedList(Array(21).fill('https://a.com')), false); // too many
+  assert.equal(isFeedList(['https://' + 'x'.repeat(500)]), false);  // too long
+});
+
+test('isStr enforces type and max length', () => {
+  assert.ok(isStr('abc', 3));
+  assert.equal(isStr('abcd', 3), false);
+  assert.equal(isStr(42, 10), false);
+  assert.equal(isStr(undefined, 10), false);
 });

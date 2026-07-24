@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { getUserSettings, updateUserSettings } from '../db/userSettings.js';
 import { requireJwt, loadUser, requireActive } from '../middleware/auth.js';
-import { ah } from '../util.js';
+import { ah, isStr, isFeedList } from '../util.js';
 
 const router = Router();
 router.use(requireJwt, loadUser, requireActive);
@@ -26,6 +26,14 @@ router.get('/', ah(async (req, res) => {
 
 router.put('/', ah(async (req, res) => {
   const { topics, tone, hashtags, feeds, default_post_time, onboarded, daily_draft_enabled } = req.body || {};
+  for (const [k, v, max] of [['topics', topics, 500], ['tone', tone, 600], ['hashtags', hashtags, 200]]) {
+    if (v !== undefined && !isStr(v, max)) {
+      return res.status(400).json({ error: `${k} must be a string of at most ${max} characters` });
+    }
+  }
+  if (feeds !== undefined && !isFeedList(feeds)) {
+    return res.status(400).json({ error: 'feeds must be up to 20 http(s) URLs' });
+  }
   if (default_post_time !== undefined && !/^([01]\d|2[0-3]):[0-5]\d$/.test(default_post_time)) {
     return res.status(400).json({ error: 'default_post_time must be HH:MM (UTC)' });
   }
