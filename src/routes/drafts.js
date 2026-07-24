@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { query } from '../db/index.js';
 import { buildDraftsFilter } from '../db/draftsFilter.js';
 import { requireJwt, loadUser, requireActive } from '../middleware/auth.js';
-import { ah, validateScheduledAt } from '../util.js';
+import { ah, isStr, validateScheduledAt } from '../util.js';
 import { publishDraft } from '../jobs/publish.js';
 import { generatePost } from '../services/gemini.js';
 import { generateImage } from '../services/image.js';
@@ -31,7 +31,10 @@ router.get('/today', ah(async (req, res) => {
 
 router.post('/', ah(async (req, res) => {
   const { content, topic = null, source = 'manual' } = req.body || {};
-  if (!content || !content.trim()) return res.status(400).json({ error: 'content is required' });
+  if (!isStr(content, 3000) || !content.trim()) {
+    return res.status(400).json({ error: 'content is required (max 3000 chars)' });
+  }
+  if (topic !== null && !isStr(topic, 120)) return res.status(400).json({ error: 'invalid topic' });
   if (!SOURCES.has(source)) return res.status(400).json({ error: 'invalid source' });
   const { rows: [d] } = await query(
     `INSERT INTO drafts (user_id, article_url, article_title, topic, content, source)
@@ -43,8 +46,8 @@ router.post('/', ah(async (req, res) => {
 
 router.put('/:id', ah(async (req, res) => {
   const { edited_content } = req.body || {};
-  if (typeof edited_content !== 'string') {
-    return res.status(400).json({ error: 'edited_content is required' });
+  if (!isStr(edited_content, 3000)) {
+    return res.status(400).json({ error: 'edited_content is required (max 3000 chars)' });
   }
   const { rows: [d] } = await query(
     `UPDATE drafts SET edited_content=$2 WHERE id=$1 AND user_id=$3 AND status <> 'posted' RETURNING ${DRAFT_COLS}`,

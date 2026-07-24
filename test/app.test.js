@@ -31,6 +31,20 @@ test('public endpoints rate limit with 429 after RL_PUBLIC_MAX requests', async 
   } finally { server.close(); }
 });
 
+test('mutations without auth still 401 (validation did not open a bypass)', async () => {
+  resetRateLimits();
+  const server = buildApp().listen(0);
+  try {
+    const base = `http://127.0.0.1:${server.address().port}`;
+    const res = await fetch(`${base}/api/generate`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-requested-with': 't' },
+      body: JSON.stringify({ prompt: 'x'.repeat(3000) }),
+    });
+    assert.equal(res.status, 401);
+  } finally { server.close(); }
+});
+
 test('/api/jobs is exempt from the global limiter (still guarded by cron secret)', async () => {
   resetRateLimits();
   process.env.RL_API_MAX = '1';

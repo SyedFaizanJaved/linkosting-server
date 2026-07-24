@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert';
-import { validateScheduledAt, isEmail, isStr } from '../src/util.js';
+import { validateScheduledAt, isEmail, isStr, isFeedList } from '../src/util.js';
 
 const NOW = Date.parse('2026-07-12T12:00:00Z');
 
@@ -32,6 +32,17 @@ test('isEmail accepts normal addresses, rejects junk and non-strings', () => {
   assert.equal(isEmail(null), false);
   assert.equal(isEmail({ toString: () => 'a@b.co' }), false);
   assert.equal(isEmail('a@b.co'.padEnd(255, 'x')), false); // >254 chars
+});
+
+test('isFeedList allows up to 20 http(s) URLs, rejects anything else', () => {
+  assert.ok(isFeedList([]));
+  assert.ok(isFeedList(['https://a.com/rss', 'http://b.com/feed']));
+  assert.equal(isFeedList('https://a.com'), false);            // not an array
+  assert.equal(isFeedList(['ftp://a.com']), false);            // wrong scheme
+  assert.equal(isFeedList(['javascript:alert(1)']), false);
+  assert.equal(isFeedList([42]), false);                       // non-string
+  assert.equal(isFeedList(Array(21).fill('https://a.com')), false); // too many
+  assert.equal(isFeedList(['https://' + 'x'.repeat(500)]), false);  // too long
 });
 
 test('isStr enforces type and max length', () => {
