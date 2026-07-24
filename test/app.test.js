@@ -5,7 +5,7 @@ process.env.JWT_SECRET = 'test-secret';
 process.env.CRON_SECRET = 'test-cron';
 process.env.RL_PUBLIC_MAX = '3';
 
-const { buildApp } = await import('../src/app.js');
+const { buildApp, errorHandler } = await import('../src/app.js');
 const { resetRateLimits } = await import('../src/middleware/rateLimit.js');
 
 test('GET /api/health returns ok', async () => {
@@ -56,4 +56,35 @@ test('/api/jobs is exempt from the global limiter (still guarded by cron secret)
       assert.equal(res.status, 401); // wrong secret, but never 429
     }
   } finally { server.close(); delete process.env.RL_API_MAX; }
+});
+
+test('errorHandler returns a generic 500 and logs the real error', () => {
+  const res = { code: 0, body: null, status(c) { this.code = c; return this; }, json(b) { this.body = b; return this; } };
+  const logged = [];
+  const orig = console.error;
+  console.error = (...a) => logged.push(a.join(' '));
+  try {
+    errorHandler(new Error('pg: password authentication failed for user "linkosting"'),
+      { method: 'GET', path: '/api/drafts' }, res, () => {});
+  } finally { console.error = orig; }
+  assert.equal(res.code, 500);
+  assert.deepEqual(res.body, { error: 'internal server error' });
+  assert.ok(logged.join(' ').includes('password authentication failed'));
+});
+
+test('errorHandler turns body-parse errors into a clean 400', () => {
+  const res = { code: 0, body: null, status(c) { this.code = c; return this; }, json(b) { this.body = b; return this; } };
+  const err = Object.assign(new Error('Unexpected token'), { type: 'entity.parse.failed' });
+  errorHandler(err, { method: 'POST', path: '/api/drafts' }, res, () => {});
+  assert.equal(res.code, 400);
+  assert.deepEqual(res.body, { error: 'invalid request body' });
+});
+
+test('responses carry X-Content-Type-Options: nosniff', async () => {
+  resetRateLimits();
+  const server = buildApp().listen(0);
+  try {
+    const res = await fetch(`http://127.0.0.1:${server.address().port}/api/health`);
+    assert.equal(res.headers.get('x-content-type-options'), 'nosniff');
+  } finally { server.close(); }
 });
