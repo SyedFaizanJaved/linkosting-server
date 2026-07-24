@@ -62,3 +62,21 @@ test('requireCronSecret fails closed when CRON_SECRET is unset', () => {
   assert.equal(res.code, 401);
   process.env.CRON_SECRET = saved;
 });
+
+const { buildApp } = await import('../src/app.js');
+
+test('POST /api/auth/register rejects malformed email and out-of-range password', async () => {
+  const server = buildApp().listen(0);
+  try {
+    const base = `http://127.0.0.1:${server.address().port}/api/auth/register`;
+    const post = body => fetch(base, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-requested-with': 'test' },
+      body: JSON.stringify(body),
+    });
+    assert.equal((await post({ email: 'nope', password: 'longenough' })).status, 400);
+    assert.equal((await post({ email: 'a@b.co', password: 'short' })).status, 400);
+    assert.equal((await post({ email: 'a@b.co', password: 'x'.repeat(73) })).status, 400);
+    assert.equal((await post({ email: 42, password: 'longenough' })).status, 400);
+  } finally { server.close(); }
+});

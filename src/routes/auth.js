@@ -2,7 +2,7 @@ import { Router } from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { query } from '../db/index.js';
-import { ah } from '../util.js';
+import { ah, isEmail, isStr } from '../util.js';
 import { requireJwt } from '../middleware/auth.js';
 import { authLimiter, publicLimiter } from '../middleware/rateLimit.js';
 import { buildResetToken, verifyResetToken } from '../services/resetToken.js';
@@ -13,6 +13,12 @@ const router = Router();
 
 router.post('/login', authLimiter, ah(async (req, res) => {
   const { email, password } = req.body || {};
+  // Same 401 as a failed login — no oracle for "malformed email" vs "wrong
+  // password". 1024 not 72: bcrypt reads only 72 bytes, but a legacy long
+  // password must still get "invalid credentials", not a schema error.
+  if (!isEmail(email) || !isStr(password, 1024)) {
+    return res.status(401).json({ error: 'invalid credentials' });
+  }
   const { rows: [user] } = await query('SELECT * FROM users WHERE email=$1', [email]);
   if (!user || !(await bcrypt.compare(password || '', user.password_hash))) {
     return res.status(401).json({ error: 'invalid credentials' });
@@ -54,8 +60,10 @@ router.get('/status', publicLimiter, ah(async (req, res) => {
 
 router.post('/register', authLimiter, ah(async (req, res) => {
   const { email, password } = req.body || {};
-  if (!email || !password) return res.status(400).json({ error: 'email and password are required' });
-  if (password.length < 8) return res.status(400).json({ error: 'password must be at least 8 characters' });
+  if (!isEmail(email)) return res.status(400).json({ error: 'enter a valid email address' });
+  if (!isStr(password, 72) || password.length < 8) {
+    return res.status(400).json({ error: 'password must be 8-72 characters' });
+  }
   const existing = await query('SELECT 1 FROM users WHERE email=$1', [email]);
   if (existing.rows.length) return res.status(409).json({ error: 'an account with this email already exists' });
   const hash = bcrypt.hashSync(password, 10);
@@ -84,7 +92,8 @@ router.post('/register', authLimiter, ah(async (req, res) => {
 
 router.post('/forgot', authLimiter, ah(async (req, res) => {
   const { email } = req.body || {};
-  const { rows: [user] } = await query('SELECT * FROM users WHERE email=$1', [email || '']);
+  if (!isEmail(email)) return res.json({ ok: true }); // never reveal validity
+  const { rows: [user] } = await query('SELECT * FROM users WHERE email=$1', [email]);
   if (user) {
     const token = buildResetToken(user);
     const link = `${process.env.CLIENT_ORIGIN || 'http://localhost:5173'}/reset?token=${token}`;
@@ -101,8 +110,10 @@ router.post('/forgot', authLimiter, ah(async (req, res) => {
 
 router.post('/reset', authLimiter, ah(async (req, res) => {
   const { token, password } = req.body || {};
-  if (!token || !password) return res.status(400).json({ error: 'token and password are required' });
-  if (password.length < 8) return res.status(400).json({ error: 'password must be at least 8 characters' });
+  if (!token || !isStr(token, 2048)) return res.status(400).json({ error: 'invalid or expired token' });
+  if (!isStr(password, 72) || password.length < 8) {
+    return res.status(400).json({ error: 'password must be 8-72 characters' });
+  }
   let decoded = null;
   try { decoded = jwt.decode(token); } catch { decoded = null; }
   if (!decoded?.sub) return res.status(400).json({ error: 'invalid or expired token' });
