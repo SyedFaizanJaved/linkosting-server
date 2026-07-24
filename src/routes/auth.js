@@ -4,13 +4,14 @@ import bcrypt from 'bcryptjs';
 import { query } from '../db/index.js';
 import { ah } from '../util.js';
 import { requireJwt } from '../middleware/auth.js';
+import { authLimiter, publicLimiter } from '../middleware/rateLimit.js';
 import { buildResetToken, verifyResetToken } from '../services/resetToken.js';
 import { setAuthCookies, clearAuthCookies, verifyRefresh } from '../services/tokens.js';
 import { sendMail } from '../services/email.js';
 
 const router = Router();
 
-router.post('/login', ah(async (req, res) => {
+router.post('/login', authLimiter, ah(async (req, res) => {
   const { email, password } = req.body || {};
   const { rows: [user] } = await query('SELECT * FROM users WHERE email=$1', [email]);
   if (!user || !(await bcrypt.compare(password || '', user.password_hash))) {
@@ -46,12 +47,12 @@ router.get('/me', requireJwt, ah(async (req, res) => {
   res.json({ email: u.email, role: u.role, status: u.status, onboarded: u.onboarded });
 }));
 
-router.get('/status', ah(async (req, res) => {
+router.get('/status', publicLimiter, ah(async (req, res) => {
   const { rows: [{ count }] } = await query('SELECT count(*)::int AS count FROM users');
   res.json({ registered: count > 0 });
 }));
 
-router.post('/register', ah(async (req, res) => {
+router.post('/register', authLimiter, ah(async (req, res) => {
   const { email, password } = req.body || {};
   if (!email || !password) return res.status(400).json({ error: 'email and password are required' });
   if (password.length < 8) return res.status(400).json({ error: 'password must be at least 8 characters' });
@@ -81,7 +82,7 @@ router.post('/register', ah(async (req, res) => {
   ).catch(e => console.error('[register] admin notify failed:', e.message));
 }));
 
-router.post('/forgot', ah(async (req, res) => {
+router.post('/forgot', authLimiter, ah(async (req, res) => {
   const { email } = req.body || {};
   const { rows: [user] } = await query('SELECT * FROM users WHERE email=$1', [email || '']);
   if (user) {
@@ -98,7 +99,7 @@ router.post('/forgot', ah(async (req, res) => {
   res.json({ ok: true });
 }));
 
-router.post('/reset', ah(async (req, res) => {
+router.post('/reset', authLimiter, ah(async (req, res) => {
   const { token, password } = req.body || {};
   if (!token || !password) return res.status(400).json({ error: 'token and password are required' });
   if (password.length < 8) return res.status(400).json({ error: 'password must be at least 8 characters' });

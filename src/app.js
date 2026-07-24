@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import { requireCsrfHeader } from './middleware/auth.js';
+import { apiLimiter } from './middleware/rateLimit.js';
 import authRoutes from './routes/auth.js';
 import linkedinRoutes from './routes/linkedin.js';
 import jobRoutes from './routes/jobs.js';
@@ -14,10 +15,15 @@ import adminRoutes from './routes/admin.js';
 
 export function buildApp() {
   const app = express();
+  // Render terminates TLS at a proxy; without this req.ip is the proxy, and
+  // every client would share one rate-limit bucket.
+  app.set('trust proxy', 1);
   app.use(cors({ origin: [process.env.CLIENT_ORIGIN, 'http://localhost:5173'].filter(Boolean), credentials: true }));
   app.use(express.json());
   app.use(cookieParser());
   app.use(requireCsrfHeader);
+  // Loose global limiter; /api/jobs (server-to-server cron, secret-guarded) is exempt.
+  app.use((req, res, next) => (req.path.startsWith('/api/jobs') ? next() : apiLimiter(req, res, next)));
   app.get('/api/health', (req, res) => res.json({ ok: true }));
   app.use('/api/auth', authRoutes);
   app.use('/api/linkedin', linkedinRoutes);

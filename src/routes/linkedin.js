@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 import { authUrl, exchangeCode } from '../services/linkedin.js';
 import { getUserSettings, updateUserSettings } from '../db/userSettings.js';
 import { requireJwt, loadUser, requireActive } from '../middleware/auth.js';
+import { publicLimiter } from '../middleware/rateLimit.js';
 import { ah } from '../util.js';
 
 const router = Router();
@@ -16,7 +17,7 @@ router.get('/auth-url', requireJwt, loadUser, requireActive, ah(async (req, res)
 
 // Public callback (LinkedIn redirects here with no cookie), so the user is
 // recovered from the state string itself: `${uuid}:${from}:${userId}`.
-router.get('/callback', ah(async (req, res) => {
+router.get('/callback', publicLimiter, ah(async (req, res) => {
   const { code, state, error, error_description } = req.query;
   const [, from, uidStr] = String(state || '').split(':');
   const returnPath = from === 'o' ? '/onboarding' : '/settings';
